@@ -47,9 +47,9 @@ struct SensorStatus {
 };
 
 struct NavigationSensorStatus {
+  // ── Raw sensors ───────────────────────────────────────────────────────────
   SensorStatus imu;
   SensorStatus gnss;
-  SensorStatus vision;
   SensorStatus magnetometer;
   SensorStatus barometer;
   SensorStatus radar_altimeter;
@@ -59,6 +59,17 @@ struct NavigationSensorStatus {
   SensorStatus airspeed;
   SensorStatus dvl;
   SensorStatus echo_sounder;
+
+  // ── Processed / aiding solutions ─────────────────────────────────────────
+  // Camera frame — raw image delivery status (not the processed solution).
+  SensorStatus camera;
+  // Processed algorithm outputs — each maps to one AidingSource.
+  SensorStatus visual_odometry;          // PnP from camera frames
+  SensorStatus geo_reference;            // camera + DEM image matching
+  SensorStatus terrain_contour_matching; // TERCOM: radar altimeter + DEM
+  SensorStatus external_slam;
+
+  // ── External pose / velocity injections ──────────────────────────────────
   SensorStatus external_pose;
   SensorStatus external_velocity;
   SensorStatus external_odometry;

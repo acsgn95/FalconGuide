@@ -1,5 +1,6 @@
 #pragma once
 
+#include "falconguide/core/sensors/aiding.hpp"
 #include "falconguide/core/sensors/camera.hpp"
 #include "falconguide/core/sensors/common.hpp"
 #include "falconguide/core/sensors/environment.hpp"

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "falconguide/core/navigation_state.hpp"
+#include "falconguide/core/sensors/aiding.hpp"
 #include "falconguide/core/sensors/common.hpp"
 #include "falconguide/core/sensors/gnss.hpp"
 #include "falconguide/estimation/estimator_interface.hpp"
@@ -153,6 +154,26 @@ constexpr std::string_view ToString(estimation::EstimatorUpdateResult r) noexcep
 
 inline std::ostream& operator<<(std::ostream& os, estimation::EstimatorUpdateResult r) {
   return os << ToString(r);
+}
+
+// ── AidingSource ──────────────────────────────────────────────────────────────
+
+constexpr std::string_view ToString(AidingSource s) noexcept {
+  switch (s) {
+    case AidingSource::Unknown:                 return "Unknown";
+    case AidingSource::VisualOdometry:          return "VisualOdometry";
+    case AidingSource::GeoReference:            return "GeoReference";
+    case AidingSource::TerrainContourMatching:  return "TERCOM";
+    case AidingSource::ExternalSlam:            return "ExternalSLAM";
+    case AidingSource::SceneMatching:           return "SceneMatching";
+    case AidingSource::FeatureBasedNavigation:  return "FeatureBasedNav";
+    case AidingSource::RadioNavigation:         return "RadioNavigation";
+  }
+  return "Unknown";
+}
+
+inline std::ostream& operator<<(std::ostream& os, AidingSource s) {
+  return os << ToString(s);
 }
 
 }  // namespace falconguide::core

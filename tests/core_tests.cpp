@@ -192,8 +192,8 @@ int main() {
   state.sensors.imu.used_in_solution = true;
   state.sensors.gnss.health = SensorHealth::Rejected;
   state.sensors.gnss.innovation_norm = 12.0;
-  state.sensors.vision.health = SensorHealth::Healthy;
-  state.sensors.vision.used_in_solution = true;
+  state.sensors.visual_odometry.health = SensorHealth::Healthy;
+  state.sensors.visual_odometry.used_in_solution = true;
   assert(state.status == NavigationStatus::Nominal);
   assert(state.quality.initialized);
   assert(state.sensors.gnss.health == SensorHealth::Rejected);
