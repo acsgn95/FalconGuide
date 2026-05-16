@@ -1,11 +1,17 @@
+#include "falconguide/core/coordinates.hpp"
 #include "falconguide/core/frames.hpp"
+#include "falconguide/core/math.hpp"
+#include "falconguide/core/measurement_helpers.hpp"
 #include "falconguide/core/navigation_state.hpp"
 #include "falconguide/core/sensor_types.hpp"
 #include "falconguide/core/time.hpp"
 #include "falconguide/estimation/estimator_interface.hpp"
+#include "falconguide/estimation/measurement_variant_helpers.hpp"
+#include "falconguide/io/nmea/nmea_gga.hpp"
 
 #include <cassert>
 #include <chrono>
+#include <cmath>
 #include <type_traits>
 #include <variant>
 
@@ -33,10 +39,55 @@ int main() {
   const MonotonicTime t1(std::chrono::nanoseconds(1'500'000'000));
   assert((t1 - t0).seconds() == 0.5);
 
+  const Lla equator_origin{0.0, 0.0, 0.0};
+  const Vec3<EcefFrame> equator_ecef = LlaToEcef(equator_origin);
+  assert(Near(equator_ecef.x(), wgs84::kSemiMajorAxisM, 1e-6));
+  assert(Near(equator_ecef.y(), 0.0, 1e-6));
+  assert(Near(equator_ecef.z(), 0.0, 1e-6));
+
+  const Lla round_trip_lla = EcefToLla(equator_ecef);
+  assert(Near(round_trip_lla.latitude_rad, equator_origin.latitude_rad, 1e-12));
+  assert(Near(round_trip_lla.longitude_rad, equator_origin.longitude_rad, 1e-12));
+  assert(Near(round_trip_lla.altitude_m, equator_origin.altitude_m, 1e-6));
+
+  const LocalTangentPlane tangent_plane(equator_origin);
+  const Vec3<EnuFrame> local_enu_point(10.0, 20.0, 30.0);
+  const Vec3<EcefFrame> ecef_from_enu = tangent_plane.EnuToEcef(local_enu_point);
+  const Vec3<EnuFrame> enu_round_trip = tangent_plane.EcefToEnu(ecef_from_enu);
+  assert(Near(enu_round_trip.x(), local_enu_point.x(), 1e-9));
+  assert(Near(enu_round_trip.y(), local_enu_point.y(), 1e-9));
+  assert(Near(enu_round_trip.z(), local_enu_point.z(), 1e-9));
+
+  assert(Near(DegToRad(180.0), kPi, 1e-12));
+  assert(Near(RadToDeg(kPi / 2.0), 90.0, 1e-12));
+  assert(Clamp(5, 0, 3) == 3);
+  assert(Near(WrapAngleRad(3.0 * kPi), kPi, 1e-12) || Near(WrapAngleRad(3.0 * kPi), -kPi, 1e-12));
+  const Eigen::Vector3d vector(1.0, 2.0, 3.0);
+  assert(Near((SkewSymmetric(vector) * vector).norm(), 0.0, 1e-12));
+  const Eigen::Quaterniond yaw_quaternion = ExpMapSo3(Eigen::Vector3d(0.0, 0.0, 0.1));
+  assert(Near(LogMapSo3(yaw_quaternion).z(), 0.1, 1e-12));
+  const EulerAngles euler{DegToRad(10.0), DegToRad(20.0), DegToRad(30.0)};
+  const EulerAngles euler_round_trip = QuaternionToEuler(EulerToQuaternion(euler));
+  assert(Near(euler_round_trip.roll_rad, euler.roll_rad, 1e-12));
+  assert(Near(euler_round_trip.pitch_rad, euler.pitch_rad, 1e-12));
+  assert(Near(euler_round_trip.yaw_rad, euler.yaw_rad, 1e-12));
+
+  const auto parsed_sentence = falconguide::io::nmea::ParseSentence("$GPGGA,123519,4807.038,N,01131.000,E,1,08,0.9,545.4,M,46.9,M,,*47");
+  assert(parsed_sentence);
+  assert(parsed_sentence->formatter == "GGA");
+  const auto parsed_gga = falconguide::io::nmea::ParseGga(*parsed_sentence);
+  assert(parsed_gga);
+  const Lla parsed_gga_lla = EcefToLla(parsed_gga->position_ecef_m);
+  assert(Near(RadToDeg(parsed_gga_lla.latitude_rad), 48.1173, 1e-4));
+  assert(Near(RadToDeg(parsed_gga_lla.longitude_rad), 11.5166667, 1e-4));
+
   ImuMeasurement imu;
   imu.specific_force_mps2 = Vec3<ImuFrame>(0.0, 0.0, -9.80665);
   imu.angular_rate_radps = Vec3<ImuFrame>(0.01, 0.02, 0.03);
+  imu.timestamp.has_steady = true;
+  imu.timestamp.steady = MonotonicTime(std::chrono::nanoseconds(10));
   assert(imu.validity == MeasurementValidity::Valid);
+  assert(IsValid(imu));
 
   MagnetometerCalibration magnetometer_calibration;
   magnetometer_calibration.hard_iron_bias_tesla = Vec3<MagnetometerFrame>(1e-6, 2e-6, 3e-6);
@@ -116,9 +167,14 @@ int main() {
   assert(state.status == NavigationStatus::Nominal);
   assert(state.quality.initialized);
   assert(state.sensors.gnss.health == SensorHealth::Rejected);
+  state.position_ecef_m = LlaToEcef(Lla{DegToRad(48.1173), DegToRad(11.5166667), 545.4});
+  const std::string gga_output = falconguide::io::nmea::WriteGga(state, "123519");
+  assert(falconguide::io::nmea::ParseSentence(gga_output));
 
   SensorMeasurement measurement = imu;
   assert(std::holds_alternative<ImuMeasurement>(measurement));
+  assert(falconguide::estimation::IsValid(measurement));
+  assert(falconguide::estimation::GetTimestamp(measurement).has_steady);
   measurement = GnssSolution{};
   assert(std::holds_alternative<GnssSolution>(measurement));
 

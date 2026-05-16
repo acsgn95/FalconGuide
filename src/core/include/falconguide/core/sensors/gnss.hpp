@@ -62,6 +62,7 @@ struct GnssRawObservation {
 struct GnssObservationEpoch {
   Timestamp timestamp;
   std::vector<GnssRawObservation> observations;
+  MeasurementValidity validity{MeasurementValidity::Valid};
 };
 
 struct GnssSolution {
@@ -73,6 +74,7 @@ struct GnssSolution {
   GnssFixType fix_type{GnssFixType::NoFix};
   std::optional<double> horizontal_dop;
   std::optional<double> vertical_dop;
+  MeasurementValidity validity{MeasurementValidity::Valid};
 };
 
 struct GnssAntennaCalibration {
