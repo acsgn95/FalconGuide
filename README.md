@@ -9,9 +9,12 @@ The initial architecture separates sensor data models from estimation backends:
   Current sensor models cover IMU, magnetometer, barometer, radar altimeter,
   wheel odometry, airspeed, range finder, optical flow, DVL, echo sounder,
   external odometry, GNSS, and multi-camera metadata for odometry and
-  geo-reference workflows.
+  geo-reference workflows. The core also defines the navigation output state,
+  quality metrics, and per-sensor health/contribution status.
 - `sensors`: dataset/live sensor adapters. Planned.
 - `estimation`: EKF, Ceres sliding-window, and GTSAM factor-graph backends. Planned.
+- `estimation`: backend-neutral estimator interface for EKF, Ceres sliding-window,
+  GTSAM factor-graph, and custom solvers. Concrete backends are planned.
 - `apps`: offline replay tools and live runtime nodes. Planned.
 
 ## Build

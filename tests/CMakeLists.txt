@@ -1,4 +1,4 @@
 add_executable(falconguide_core_tests core_tests.cpp)
-target_link_libraries(falconguide_core_tests PRIVATE FalconGuide::core)
+target_link_libraries(falconguide_core_tests PRIVATE FalconGuide::core FalconGuide::estimation)
 
 add_test(NAME falconguide_core_tests COMMAND falconguide_core_tests)

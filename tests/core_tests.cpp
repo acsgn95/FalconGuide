@@ -1,12 +1,16 @@
 #include "falconguide/core/frames.hpp"
+#include "falconguide/core/navigation_state.hpp"
 #include "falconguide/core/sensor_types.hpp"
 #include "falconguide/core/time.hpp"
+#include "falconguide/estimation/estimator_interface.hpp"
 
 #include <cassert>
 #include <chrono>
 #include <type_traits>
+#include <variant>
 
 using namespace falconguide::core;
+using namespace falconguide::estimation;
 
 int main() {
   static_assert(!std::is_constructible_v<Vec3<EcefFrame>, Vec3<EnuFrame>>);
@@ -97,6 +101,26 @@ int main() {
   external_odometry.source = ExternalMeasurementSource::ExternalSlam;
   external_odometry.position_ecef_m = Vec3<EcefFrame>(1.0, 2.0, 3.0);
   assert(external_odometry.source == ExternalMeasurementSource::ExternalSlam);
+
+  NavigationState state;
+  state.status = NavigationStatus::Nominal;
+  state.mode = EstimatorMode::MultiSensorFusion;
+  state.quality.initialized = true;
+  state.quality.position_accuracy_m = 0.8;
+  state.sensors.imu.health = SensorHealth::Healthy;
+  state.sensors.imu.used_in_solution = true;
+  state.sensors.gnss.health = SensorHealth::Rejected;
+  state.sensors.gnss.innovation_norm = 12.0;
+  state.sensors.vision.health = SensorHealth::Healthy;
+  state.sensors.vision.used_in_solution = true;
+  assert(state.status == NavigationStatus::Nominal);
+  assert(state.quality.initialized);
+  assert(state.sensors.gnss.health == SensorHealth::Rejected);
+
+  SensorMeasurement measurement = imu;
+  assert(std::holds_alternative<ImuMeasurement>(measurement));
+  measurement = GnssSolution{};
+  assert(std::holds_alternative<GnssSolution>(measurement));
 
   GnssObservationEpoch epoch;
   epoch.observations.push_back(
