@@ -1,0 +1,151 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 23,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_CXX_STANDARD": "20",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "FALCON_GUIDE_BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "windows-vcpkg",
+      "displayName": "Windows x64 vcpkg",
+      "inherits": "base",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      },
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/.tools/vcpkg/scripts/buildsystems/vcpkg.cmake",
+        "VCPKG_TARGET_TRIPLET": "x64-windows",
+        "VCPKG_HOST_TRIPLET": "x64-windows"
+      }
+    },
+    {
+      "name": "windows-arm64-vcpkg",
+      "displayName": "Windows ARM64 vcpkg",
+      "inherits": "base",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      },
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/.tools/vcpkg/scripts/buildsystems/vcpkg.cmake",
+        "VCPKG_TARGET_TRIPLET": "arm64-windows",
+        "VCPKG_HOST_TRIPLET": "arm64-windows"
+      }
+    },
+    {
+      "name": "linux-system",
+      "displayName": "Linux system packages",
+      "inherits": "base",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      },
+      "cacheVariables": {
+        "FALCON_GUIDE_FETCH_DEPS": "OFF"
+      }
+    },
+    {
+      "name": "linux-fetchcontent",
+      "displayName": "Linux FetchContent fallback",
+      "inherits": "base",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      },
+      "cacheVariables": {
+        "FALCON_GUIDE_FETCH_DEPS": "ON"
+      }
+    },
+    {
+      "name": "linux-production",
+      "displayName": "Linux production release",
+      "inherits": "base",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "FALCON_GUIDE_BUILD_TESTS": "OFF",
+        "FALCON_GUIDE_FETCH_DEPS": "OFF"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "windows-vcpkg",
+      "configurePreset": "windows-vcpkg"
+    },
+    {
+      "name": "windows-arm64-vcpkg",
+      "configurePreset": "windows-arm64-vcpkg"
+    },
+    {
+      "name": "linux-system",
+      "configurePreset": "linux-system"
+    },
+    {
+      "name": "linux-fetchcontent",
+      "configurePreset": "linux-fetchcontent"
+    },
+    {
+      "name": "linux-production",
+      "configurePreset": "linux-production"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "windows-vcpkg",
+      "configurePreset": "windows-vcpkg",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "windows-arm64-vcpkg",
+      "configurePreset": "windows-arm64-vcpkg",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "linux-system",
+      "configurePreset": "linux-system",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "linux-fetchcontent",
+      "configurePreset": "linux-fetchcontent",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "linux-production",
+      "configurePreset": "linux-production",
+      "output": {
+        "outputOnFailure": true
+      }
+    }
+  ]
+}

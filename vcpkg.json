@@ -1,0 +1,8 @@
+{
+  "name": "falconguide",
+  "version-string": "0.1.0",
+  "description": "Visual-Inertial GNSS Navigation System",
+  "dependencies": [
+    "eigen3"
+  ]
+}
