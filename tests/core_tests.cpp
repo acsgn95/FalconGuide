@@ -1,3 +1,4 @@
+#include "falconguide/core/buffers/time_ordered_buffer.hpp"
 #include "falconguide/core/coordinates.hpp"
 #include "falconguide/core/frames.hpp"
 #include "falconguide/core/math.hpp"
@@ -5,6 +6,7 @@
 #include "falconguide/core/navigation_state.hpp"
 #include "falconguide/core/sensor_types.hpp"
 #include "falconguide/core/time.hpp"
+#include "falconguide/core/time_helpers.hpp"
 #include "falconguide/estimation/estimator_interface.hpp"
 #include "falconguide/estimation/measurement_variant_helpers.hpp"
 #include "falconguide/io/nmea/nmea_gga.hpp"
@@ -38,6 +40,15 @@ int main() {
   const MonotonicTime t0(std::chrono::nanoseconds(1'000'000'000));
   const MonotonicTime t1(std::chrono::nanoseconds(1'500'000'000));
   assert((t1 - t0).seconds() == 0.5);
+  Timestamp timestamp0;
+  timestamp0.has_steady = true;
+  timestamp0.steady = t0;
+  Timestamp timestamp1;
+  timestamp1.has_steady = true;
+  timestamp1.steady = t1;
+  assert(IsBefore(timestamp0, timestamp1));
+  assert(IsAfter(timestamp1, timestamp0));
+  assert(TimeDifference(timestamp1, timestamp0)->seconds() == 0.5);
 
   const Lla equator_origin{0.0, 0.0, 0.0};
   const Vec3<EcefFrame> equator_ecef = LlaToEcef(equator_origin);
@@ -88,6 +99,20 @@ int main() {
   imu.timestamp.steady = MonotonicTime(std::chrono::nanoseconds(10));
   assert(imu.validity == MeasurementValidity::Valid);
   assert(IsValid(imu));
+  ImuMeasurement later_imu = imu;
+  later_imu.timestamp.steady = MonotonicTime(std::chrono::nanoseconds(20));
+  assert(IsOutOfOrder(later_imu, imu));
+
+  TimeOrderedBuffer<ImuMeasurement> imu_buffer(2);
+  assert(imu_buffer.Insert(later_imu) == BufferInsertResult::Inserted);
+  assert(imu_buffer.Insert(imu) == BufferInsertResult::Inserted);
+  assert(imu_buffer.Oldest()->timestamp.steady.nanoseconds_since_epoch().count() == 10);
+  ImuMeasurement latest_imu = imu;
+  latest_imu.timestamp.steady = MonotonicTime(std::chrono::nanoseconds(30));
+  assert(imu_buffer.Insert(latest_imu) == BufferInsertResult::InsertedAndDroppedOldest);
+  assert(imu_buffer.size() == 2);
+  const std::vector<ImuMeasurement> popped_imu = imu_buffer.PopUntil(later_imu.timestamp);
+  assert(popped_imu.size() == 1);
 
   MagnetometerCalibration magnetometer_calibration;
   magnetometer_calibration.hard_iron_bias_tesla = Vec3<MagnetometerFrame>(1e-6, 2e-6, 3e-6);
