@@ -11,4 +11,5 @@ target_link_libraries(
   falconguide_io
   INTERFACE
     FalconGuide::core
+    FalconGuide::estimation
 )

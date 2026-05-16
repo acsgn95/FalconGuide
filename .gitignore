@@ -16,3 +16,5 @@ out/
 *.a
 *.so
 *.dylib
+
+.claude/

@@ -1,5 +1,6 @@
 #include "falconguide/core/buffers/time_ordered_buffer.hpp"
 #include "falconguide/core/coordinates.hpp"
+#include "falconguide/core/diagnostics.hpp"
 #include "falconguide/core/frames.hpp"
 #include "falconguide/core/math.hpp"
 #include "falconguide/core/measurement_helpers.hpp"
@@ -9,7 +10,11 @@
 #include "falconguide/core/time_helpers.hpp"
 #include "falconguide/estimation/estimator_interface.hpp"
 #include "falconguide/estimation/measurement_variant_helpers.hpp"
+#include "falconguide/io/measurement_reader.hpp"
+#include "falconguide/io/measurement_writer.hpp"
 #include "falconguide/io/nmea/nmea_gga.hpp"
+#include "falconguide/io/nmea/nmea_rmc.hpp"
+#include "falconguide/io/nmea/nmea_vtg.hpp"
 
 #include <cassert>
 #include <chrono>
@@ -226,6 +231,77 @@ int main() {
   geo_image.approximate_position_ecef_m = Vec3<EcefFrame>(1.0, 2.0, 3.0);
   geo_image.ground_sample_distance_m = 0.25;
   assert(geo_image.validity == MeasurementValidity::Valid);
+
+  // ── diagnostics: ToString ──────────────────────────────────────────────────
+  assert(falconguide::core::ToString(NavigationStatus::Nominal)        == "Nominal");
+  assert(falconguide::core::ToString(NavigationStatus::DeadReckoning)  == "DeadReckoning");
+  assert(falconguide::core::ToString(NavigationStatus::Fault)          == "Fault");
+
+  assert(falconguide::core::ToString(EstimatorMode::VisualInertialGnss) == "VisualInertialGnss");
+  assert(falconguide::core::ToString(EstimatorMode::InertialOnly)       == "InertialOnly");
+
+  assert(falconguide::core::ToString(SensorHealth::Healthy)  == "Healthy");
+  assert(falconguide::core::ToString(SensorHealth::Stale)    == "Stale");
+  assert(falconguide::core::ToString(SensorHealth::Rejected) == "Rejected");
+
+  assert(falconguide::core::ToString(MeasurementValidity::Valid)      == "Valid");
+  assert(falconguide::core::ToString(MeasurementValidity::OutOfOrder) == "OutOfOrder");
+
+  assert(falconguide::core::ToString(GnssFixType::RtkFixed)               == "RtkFixed");
+  assert(falconguide::core::ToString(GnssFixType::PrecisePointPositioning) == "PrecisePointPositioning");
+  assert(falconguide::core::ToString(GnssFixType::NoFix)                  == "NoFix");
+
+  assert(falconguide::core::ToString(EstimatorBackend::Ekf)               == "EKF");
+  assert(falconguide::core::ToString(EstimatorBackend::GtsamFactorGraph)   == "GtsamFactorGraph");
+  assert(falconguide::core::ToString(EstimatorUpdateResult::Accepted)      == "Accepted");
+  assert(falconguide::core::ToString(EstimatorUpdateResult::BackendError)  == "BackendError");
+
+  // ── IMeasurementReader / IMeasurementWriter: compile-time interface check ──
+  static_assert(std::is_abstract_v<falconguide::io::IMeasurementReader>);
+  static_assert(std::is_abstract_v<falconguide::io::IMeasurementWriter>);
+
+  // ReaderCapabilities bitmask
+  using RC = falconguide::io::ReaderCapabilities;
+  const RC caps = RC::Imu | RC::Gnss | RC::Camera;
+  assert(falconguide::io::HasCapability(caps, RC::Imu));
+  assert(falconguide::io::HasCapability(caps, RC::Gnss));
+  assert(falconguide::io::HasCapability(caps, RC::Camera));
+  assert(!falconguide::io::HasCapability(caps, RC::Barometer));
+
+  // ── NMEA RMC round-trip ────────────────────────────────────────────────────
+  NavigationState rmc_state;
+  rmc_state.status = NavigationStatus::Nominal;
+  const Lla rmc_lla{DegToRad(51.5), DegToRad(-0.12), 30.0};
+  rmc_state.position_ecef_m = LlaToEcef(rmc_lla);
+  rmc_state.velocity_enu_mps = Vec3<EnuFrame>(5.0, 10.0, 0.0);  // east=5, north=10
+
+  const std::string rmc_sentence = falconguide::io::nmea::WriteRmc(rmc_state, "120000.00", "160526");
+  assert(!rmc_sentence.empty());
+  assert(rmc_sentence.front() == '$');
+
+  const auto rmc_parsed = falconguide::io::nmea::ParseRmcLine(rmc_sentence);
+  assert(rmc_parsed.has_value());
+  assert(rmc_parsed->fix_type == GnssFixType::Single);
+  assert(rmc_parsed->validity == MeasurementValidity::Valid);
+
+  // Void RMC (no fix) should not parse to a solution.
+  const std::string rmc_void = "$FGRMC,,V,,,,,,,,,,N*XX";  // invalid checksum, just structural
+  assert(!falconguide::io::nmea::ParseRmcLine(rmc_void).has_value());
+
+  // ── NMEA VTG round-trip ────────────────────────────────────────────────────
+  NavigationState vtg_state;
+  vtg_state.status = NavigationStatus::Nominal;
+  vtg_state.velocity_enu_mps = Vec3<EnuFrame>(0.0, 10.0, 0.0);  // due north, 10 m/s
+
+  const std::string vtg_sentence = falconguide::io::nmea::WriteVtg(vtg_state);
+  assert(!vtg_sentence.empty());
+
+  const auto vtg_parsed = falconguide::io::nmea::ParseVtgLine(vtg_sentence);
+  assert(vtg_parsed.has_value());
+  // Due north → course = 0°
+  assert(Near(vtg_parsed->course_true_deg, 0.0, 0.01));
+  // 10 m/s ≈ 19.438 knots
+  assert(Near(vtg_parsed->speed_knots, 10.0 / 0.514444, 0.01));
 
   return 0;
 }
