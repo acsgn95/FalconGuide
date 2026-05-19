@@ -30,7 +30,8 @@ using SensorMeasurement = std::variant<
     core::CameraFrameMeasurement,
     core::GeoReferenceImageMeasurement,
     core::AidingSolution,
-    core::StarTrackerMeasurement>;
+    core::StarTrackerMeasurement,
+    core::GnssTightlyCoupledEpoch>;
 
 enum class EstimatorBackend {
   Unknown,
