@@ -74,7 +74,7 @@ void UkfEstimator::Reset() {
   state_ = UkfState{};
 }
 
-EstimatorUpdateResult UkfEstimator::AddMeasurement(const SensorMeasurement& measurement) {
+MeasurementUpdateReport UkfEstimator::AddMeasurement(const SensorMeasurement& measurement) {
   std::unique_lock lk(mutex_);
 
   // ── IMU: buffer ───────────────────────────────────────────────────────────
@@ -82,18 +82,19 @@ EstimatorUpdateResult UkfEstimator::AddMeasurement(const SensorMeasurement& meas
     const auto r = imu_buffer_.Insert(*imu);
     if (r == core::BufferInsertResult::RejectedOutOfOrder ||
         r == core::BufferInsertResult::RejectedNotComparable) {
-      return EstimatorUpdateResult::OutOfOrder;
+      return {EstimatorUpdateResult::OutOfOrder};
     }
-    return EstimatorUpdateResult::Buffered;
+    return {EstimatorUpdateResult::Buffered};
   }
 
   // ── Initialise from first GNSS ────────────────────────────────────────────
   if (!initialised_) {
     if (const auto* gnss = std::get_if<core::GnssSolution>(&measurement)) {
-      return TryInitialiseFromGnss(*gnss) ? EstimatorUpdateResult::Accepted
-                                          : EstimatorUpdateResult::Rejected;
+      const bool ok = TryInitialiseFromGnss(*gnss);
+      return {ok ? EstimatorUpdateResult::Accepted : EstimatorUpdateResult::Rejected,
+              "UkfGnssLooselyCoupled"};
     }
-    return EstimatorUpdateResult::NotInitialized;
+    return {EstimatorUpdateResult::NotInitialized};
   }
 
   // ── Propagate IMU to measurement time ─────────────────────────────────────
@@ -105,13 +106,13 @@ EstimatorUpdateResult UkfEstimator::AddMeasurement(const SensorMeasurement& meas
   for (auto& model : measurement_models_) {
     if (!model->CanHandle(measurement)) continue;
 
-    const auto result = ApplyMeasurementModel(*model, measurement, ctx);
-    if (result == EstimatorUpdateResult::Accepted) {
+    auto report = ApplyMeasurementModel(*model, measurement, ctx);
+    if (report.result == EstimatorUpdateResult::Accepted) {
       last_aiding_timestamp_ = estimation::GetTimestamp(measurement);
     }
-    return result;
+    return report;
   }
-  return EstimatorUpdateResult::Rejected;
+  return {EstimatorUpdateResult::Rejected};
 }
 
 EstimatorUpdateResult UkfEstimator::ProcessUntil(const core::Timestamp& timestamp) {
@@ -331,13 +332,13 @@ StateCovariance UkfEstimator::BuildProcessNoise(
 //  8. State update: inject K δz into nominal.
 //  9. Covariance update P ← P − K S Kᵀ.
 //
-EstimatorUpdateResult UkfEstimator::ApplyMeasurementModel(
+MeasurementUpdateReport UkfEstimator::ApplyMeasurementModel(
     IUkfMeasurementModel& model,
     const SensorMeasurement& measurement,
     const UkfUpdateContext& ctx) {
 
   const auto z_obs_opt = model.Observe(measurement, ctx);
-  if (!z_obs_opt) return EstimatorUpdateResult::Rejected;
+  if (!z_obs_opt) return {EstimatorUpdateResult::Rejected, model.Name()};
   const Eigen::VectorXd& z_obs = *z_obs_opt;
 
   const int m = static_cast<int>(z_obs.size());
@@ -385,7 +386,7 @@ EstimatorUpdateResult UkfEstimator::ApplyMeasurementModel(
   state_.covariance -= K * S * K.transpose();
   state_.covariance  = core::SymmetrizeCovariance(state_.covariance);
 
-  return EstimatorUpdateResult::Accepted;
+  return {EstimatorUpdateResult::Accepted, model.Name(), delta_x.norm()};
 }
 
 // ── TryInitialiseFromGnss ─────────────────────────────────────────────────────

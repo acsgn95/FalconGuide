@@ -67,26 +67,27 @@ void EkfEstimator::Reset() {
   state_.nominal     = NominalState{};
 }
 
-EstimatorUpdateResult EkfEstimator::AddMeasurement(const SensorMeasurement& measurement) {
+MeasurementUpdateReport EkfEstimator::AddMeasurement(const SensorMeasurement& measurement) {
   std::unique_lock lock(mutex_);
 
   // ── IMU: buffer for propagation ────────────────────────────────────────────
   if (const auto* imu = std::get_if<core::ImuMeasurement>(&measurement)) {
-    const auto result = imu_buffer_.Insert(*imu);
-    if (result == core::BufferInsertResult::RejectedOutOfOrder ||
-        result == core::BufferInsertResult::RejectedNotComparable) {
-      return EstimatorUpdateResult::OutOfOrder;
+    const auto r = imu_buffer_.Insert(*imu);
+    if (r == core::BufferInsertResult::RejectedOutOfOrder ||
+        r == core::BufferInsertResult::RejectedNotComparable) {
+      return {EstimatorUpdateResult::OutOfOrder};
     }
-    return EstimatorUpdateResult::Buffered;
+    return {EstimatorUpdateResult::Buffered};
   }
 
   // ── First GNSS: initialise ────────────────────────────────────────────────
   if (!initialised_) {
     if (const auto* gnss = std::get_if<core::GnssSolution>(&measurement)) {
-      return TryInitialiseFromGnss(*gnss) ? EstimatorUpdateResult::Accepted
-                                          : EstimatorUpdateResult::Rejected;
+      const bool ok = TryInitialiseFromGnss(*gnss);
+      return {ok ? EstimatorUpdateResult::Accepted : EstimatorUpdateResult::Rejected,
+              "GnssLooselyCoupled"};
     }
-    return EstimatorUpdateResult::NotInitialized;
+    return {EstimatorUpdateResult::NotInitialized};
   }
 
   // ── Propagate IMU buffer to measurement time ───────────────────────────────
@@ -103,13 +104,16 @@ EstimatorUpdateResult EkfEstimator::AddMeasurement(const SensorMeasurement& meas
         state_.layout, measurement, ctx);
 
     if (result == EstimatorUpdateResult::Accepted) {
+      // Capture state correction magnitude before zeroing the error vector.
+      const double corr = state_.error_state.norm();
       InjectErrorAndReset();
       last_aiding_timestamp_ = estimation::GetTimestamp(measurement);
+      return {result, model->Name(), corr};
     }
-    return result;
+    return {result, model->Name()};
   }
 
-  return EstimatorUpdateResult::Rejected;
+  return {EstimatorUpdateResult::Rejected};
 }
 
 EstimatorUpdateResult EkfEstimator::ProcessUntil(const core::Timestamp& timestamp) {

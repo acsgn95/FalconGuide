@@ -69,7 +69,7 @@ class EkfEstimator : public INavigationEstimator {
   // GnssSolution on first call → initialises state and LTP.
   // All other measurement types → dispatched to registered models after
   //   propagating the IMU buffer to the measurement timestamp.
-  EstimatorUpdateResult AddMeasurement(const SensorMeasurement& measurement) override;
+  MeasurementUpdateReport AddMeasurement(const SensorMeasurement& measurement) override;
 
   // Propagate all buffered IMU up to (and including) timestamp.
   EstimatorUpdateResult ProcessUntil(const core::Timestamp& timestamp) override;

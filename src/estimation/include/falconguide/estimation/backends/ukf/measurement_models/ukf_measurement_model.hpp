@@ -33,6 +33,8 @@ class IUkfMeasurementModel {
  public:
   virtual ~IUkfMeasurementModel() = default;
 
+  [[nodiscard]] virtual std::string_view Name() const { return "Unknown"; }
+
   [[nodiscard]] virtual bool CanHandle(const SensorMeasurement& measurement) const = 0;
 
   // Dimension of the predicted measurement vector for this sensor.

@@ -57,7 +57,7 @@ class UkfEstimator : public INavigationEstimator {
   [[nodiscard]] EstimatorInfo           Info()    const override;
   [[nodiscard]] const EstimatorOptions& Options() const override;
 
-  EstimatorUpdateResult AddMeasurement(const SensorMeasurement& measurement) override;
+  MeasurementUpdateReport AddMeasurement(const SensorMeasurement& measurement) override;
   EstimatorUpdateResult ProcessUntil(const core::Timestamp& timestamp)       override;
   void                  Reset()                                               override;
 
@@ -70,7 +70,7 @@ class UkfEstimator : public INavigationEstimator {
   void PropagateTo(const core::Timestamp& target);
   [[nodiscard]] StateCovariance BuildProcessNoise(const core::ImuMeasurement& imu, double dt_s) const;
 
-  EstimatorUpdateResult ApplyMeasurementModel(
+  MeasurementUpdateReport ApplyMeasurementModel(
       IUkfMeasurementModel& model,
       const SensorMeasurement& measurement,
       const UkfUpdateContext& ctx);

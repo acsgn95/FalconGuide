@@ -41,6 +41,9 @@ class IMeasurementModel {
  public:
   virtual ~IMeasurementModel() = default;
 
+  // Human-readable name used in MeasurementUpdateReport.
+  [[nodiscard]] virtual std::string_view Name() const { return "Unknown"; }
+
   // Returns true if this model can process the given measurement variant.
   [[nodiscard]] virtual bool CanHandle(const SensorMeasurement& measurement) const = 0;
 
