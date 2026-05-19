@@ -20,6 +20,7 @@ struct DvlFrame {};
 struct EchoSounderFrame {};
 struct CameraFrame {};
 struct GnssAntennaFrame {};
+struct StarTrackerFrame {};
 
 template <typename Frame>
 class Vec3 {

@@ -9,3 +9,4 @@
 #include "falconguide/core/sensors/imu.hpp"
 #include "falconguide/core/sensors/odometry.hpp"
 #include "falconguide/core/sensors/range.hpp"
+#include "falconguide/core/sensors/star_tracker.hpp"
