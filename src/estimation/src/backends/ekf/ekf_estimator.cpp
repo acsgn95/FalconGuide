@@ -4,6 +4,7 @@
 #include "falconguide/core/math.hpp"
 #include "falconguide/core/time_helpers.hpp"
 #include "falconguide/estimation/measurement_variant_helpers.hpp"
+#include "falconguide/logger/logger.hpp"
 
 #include <variant>
 
@@ -65,6 +66,7 @@ void EkfEstimator::Reset() {
   state_.error_state = state_.layout.ZeroVector();
   state_.covariance  = state_.layout.ZeroMatrix();
   state_.nominal     = NominalState{};
+  FG_INFO("EKF | filter reset");
 }
 
 MeasurementUpdateReport EkfEstimator::AddMeasurement(const SensorMeasurement& measurement) {
@@ -75,6 +77,7 @@ MeasurementUpdateReport EkfEstimator::AddMeasurement(const SensorMeasurement& me
     const auto r = imu_buffer_.Insert(*imu);
     if (r == core::BufferInsertResult::RejectedOutOfOrder ||
         r == core::BufferInsertResult::RejectedNotComparable) {
+      FG_WARN("EKF | IMU out-of-order, discarded");
       return {EstimatorUpdateResult::OutOfOrder};
     }
     return {EstimatorUpdateResult::Buffered};
@@ -87,6 +90,7 @@ MeasurementUpdateReport EkfEstimator::AddMeasurement(const SensorMeasurement& me
       return {ok ? EstimatorUpdateResult::Accepted : EstimatorUpdateResult::Rejected,
               "GnssLooselyCoupled"};
     }
+    FG_DEBUG("EKF | measurement received before initialization, discarded");
     return {EstimatorUpdateResult::NotInitialized};
   }
 
@@ -108,11 +112,17 @@ MeasurementUpdateReport EkfEstimator::AddMeasurement(const SensorMeasurement& me
       const double corr = state_.error_state.norm();
       InjectErrorAndReset();
       last_aiding_timestamp_ = estimation::GetTimestamp(measurement);
+      FG_DEBUG("EKF | {} accepted, correction={:.4f}m", model->Name(), corr);
+      if (corr > 10.0) {
+        FG_WARN("EKF | {} large correction={:.4f}m — possible sensor outlier", model->Name(), corr);
+      }
       return {result, model->Name(), corr};
     }
+    FG_DEBUG("EKF | {} rejected (gate or invalid)", model->Name());
     return {result, model->Name()};
   }
 
+  FG_WARN("EKF | no measurement model matched for incoming measurement");
   return {EstimatorUpdateResult::Rejected};
 }
 
@@ -304,8 +314,14 @@ void EkfEstimator::InjectErrorAndReset() {
 // ── Initialisation ────────────────────────────────────────────────────────────
 
 bool EkfEstimator::TryInitialiseFromGnss(const core::GnssSolution& gnss) {
-  if (gnss.fix_type == core::GnssFixType::NoFix)             return false;
-  if (gnss.validity != core::MeasurementValidity::Valid)     return false;
+  if (gnss.fix_type == core::GnssFixType::NoFix) {
+    FG_WARN("EKF | GNSS init failed: NoFix");
+    return false;
+  }
+  if (gnss.validity != core::MeasurementValidity::Valid) {
+    FG_WARN("EKF | GNSS init failed: measurement not valid");
+    return false;
+  }
 
   // ── ENU origin at first fix ───────────────────────────────────────────────
   const core::Lla origin_lla = core::EcefToLla(gnss.position_ecef_m);
@@ -364,6 +380,10 @@ bool EkfEstimator::TryInitialiseFromGnss(const core::GnssSolution& gnss) {
   }
 
   initialised_ = true;
+  FG_INFO("EKF | initialized — LTP origin lat={:.6f}° lon={:.6f}° alt={:.1f}m",
+          origin_lla.latitude_rad * (180.0 / M_PI),
+          origin_lla.longitude_rad * (180.0 / M_PI),
+          origin_lla.altitude_m);
   return true;
 }
 

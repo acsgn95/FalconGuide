@@ -4,6 +4,7 @@
 #include "falconguide/core/math.hpp"
 #include "falconguide/core/time_helpers.hpp"
 #include "falconguide/estimation/measurement_variant_helpers.hpp"
+#include "falconguide/logger/logger.hpp"
 
 #include <array>
 #include <variant>
@@ -72,6 +73,7 @@ void UkfEstimator::Reset() {
   last_imu_timestamp_    = std::nullopt;
   imu_buffer_.Clear();
   state_ = UkfState{};
+  FG_INFO("UKF | filter reset");
 }
 
 MeasurementUpdateReport UkfEstimator::AddMeasurement(const SensorMeasurement& measurement) {
@@ -82,6 +84,7 @@ MeasurementUpdateReport UkfEstimator::AddMeasurement(const SensorMeasurement& me
     const auto r = imu_buffer_.Insert(*imu);
     if (r == core::BufferInsertResult::RejectedOutOfOrder ||
         r == core::BufferInsertResult::RejectedNotComparable) {
+      FG_WARN("UKF | IMU out-of-order, discarded");
       return {EstimatorUpdateResult::OutOfOrder};
     }
     return {EstimatorUpdateResult::Buffered};
@@ -94,6 +97,7 @@ MeasurementUpdateReport UkfEstimator::AddMeasurement(const SensorMeasurement& me
       return {ok ? EstimatorUpdateResult::Accepted : EstimatorUpdateResult::Rejected,
               "UkfGnssLooselyCoupled"};
     }
+    FG_DEBUG("UKF | measurement received before initialization, discarded");
     return {EstimatorUpdateResult::NotInitialized};
   }
 
@@ -109,9 +113,19 @@ MeasurementUpdateReport UkfEstimator::AddMeasurement(const SensorMeasurement& me
     auto report = ApplyMeasurementModel(*model, measurement, ctx);
     if (report.result == EstimatorUpdateResult::Accepted) {
       last_aiding_timestamp_ = estimation::GetTimestamp(measurement);
+      if (report.correction_norm) {
+        FG_DEBUG("UKF | {} accepted, correction={:.4f}m", report.model_name, *report.correction_norm);
+        if (*report.correction_norm > 10.0) {
+          FG_WARN("UKF | {} large correction={:.4f}m — possible sensor outlier",
+                  report.model_name, *report.correction_norm);
+        }
+      }
+    } else {
+      FG_DEBUG("UKF | {} rejected (gate or invalid)", report.model_name);
     }
     return report;
   }
+  FG_WARN("UKF | no measurement model matched for incoming measurement");
   return {EstimatorUpdateResult::Rejected};
 }
 
@@ -182,7 +196,7 @@ void UkfEstimator::GenerateSigmaPoints() {
 
   auto llt = ((n + lambda) * state_.covariance).llt();
   if (llt.info() != Eigen::Success) {
-    // Regularise and retry once
+    FG_WARN("UKF | Cholesky failed, regularizing covariance (+1e-9·I)");
     state_.covariance += StateCovariance::Identity() * 1e-9;
     llt = ((n + lambda) * state_.covariance).llt();
   }
@@ -392,8 +406,14 @@ MeasurementUpdateReport UkfEstimator::ApplyMeasurementModel(
 // ── TryInitialiseFromGnss ─────────────────────────────────────────────────────
 
 bool UkfEstimator::TryInitialiseFromGnss(const core::GnssSolution& gnss) {
-  if (gnss.fix_type == core::GnssFixType::NoFix)           return false;
-  if (gnss.validity != core::MeasurementValidity::Valid)    return false;
+  if (gnss.fix_type == core::GnssFixType::NoFix) {
+    FG_WARN("UKF | GNSS init failed: NoFix");
+    return false;
+  }
+  if (gnss.validity != core::MeasurementValidity::Valid) {
+    FG_WARN("UKF | GNSS init failed: measurement not valid");
+    return false;
+  }
 
   const core::Lla origin_lla = core::EcefToLla(gnss.position_ecef_m);
   local_tangent_plane_ = core::LocalTangentPlane(origin_lla);
@@ -424,6 +444,10 @@ bool UkfEstimator::TryInitialiseFromGnss(const core::GnssSolution& gnss) {
 
   state_.sigma_points = SigmaMatrix::Zero();
   initialised_ = true;
+  FG_INFO("UKF | initialized — LTP origin lat={:.6f}° lon={:.6f}° alt={:.1f}m",
+          origin_lla.latitude_rad * (180.0 / M_PI),
+          origin_lla.longitude_rad * (180.0 / M_PI),
+          origin_lla.altitude_m);
   return true;
 }
 
