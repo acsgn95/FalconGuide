@@ -46,4 +46,5 @@ target_link_libraries(
   falconguide_estimation
   PUBLIC
     FalconGuide::core
+    FalconGuide::logger
 )

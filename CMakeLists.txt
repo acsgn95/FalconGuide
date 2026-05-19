@@ -18,6 +18,7 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(FalconGuideDependencies)
 
 add_subdirectory(src/core)
+add_subdirectory(src/logger)
 add_subdirectory(src/estimation)
 add_subdirectory(src/io)
 
