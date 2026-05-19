@@ -3,10 +3,14 @@
 #include "falconguide/core/buffers/time_ordered_buffer.hpp"
 #include "falconguide/core/coordinates.hpp"
 #include "falconguide/estimation/backends/ukf/ukf_state.hpp"
+#include "falconguide/estimation/backends/ukf/measurement_models/ukf_measurement_model.hpp"
 #include "falconguide/estimation/estimator_interface.hpp"
 
+#include <memory>
+#include <mutex>
 #include <optional>
 #include <string>
+#include <vector>
 
 namespace falconguide::estimation::ukf {
 
@@ -47,6 +51,9 @@ class UkfEstimator : public INavigationEstimator {
   explicit UkfEstimator(UkfOptions options = {});
   ~UkfEstimator() override = default;
 
+  // Register a sensor measurement model.  Models are tried in registration order.
+  void RegisterMeasurementModel(std::unique_ptr<IUkfMeasurementModel> model);
+
   [[nodiscard]] EstimatorInfo           Info()    const override;
   [[nodiscard]] const EstimatorOptions& Options() const override;
 
@@ -58,36 +65,31 @@ class UkfEstimator : public INavigationEstimator {
   [[nodiscard]] std::optional<core::NavigationState> LatestState() const override;
 
  private:
-  // ── Sigma point management ─────────────────────────────────────────────────
   void GenerateSigmaPoints();
+  void PropagateImu(const core::ImuMeasurement& imu, double dt_s);
+  void PropagateTo(const core::Timestamp& target);
+  [[nodiscard]] StateCovariance BuildProcessNoise(const core::ImuMeasurement& imu, double dt_s) const;
 
-  // ── Propagation ────────────────────────────────────────────────────────────
-  // Propagate all sigma points through the nonlinear process model.
-  void PropagateImu(const core::ImuMeasurement& imu);
+  EstimatorUpdateResult ApplyMeasurementModel(
+      IUkfMeasurementModel& model,
+      const SensorMeasurement& measurement,
+      const UkfUpdateContext& ctx);
 
-  // Recover mean and covariance from propagated sigma points (unscented transform).
-  void RecoverMeanAndCovariance();
-
-  // ── Updates ────────────────────────────────────────────────────────────────
-  EstimatorUpdateResult UpdateGnss(const core::GnssSolution& gnss);
-
-  // ── Initialisation ─────────────────────────────────────────────────────────
   bool TryInitialiseFromGnss(const core::GnssSolution& gnss);
-
-  // ── State → NavigationState ────────────────────────────────────────────────
   [[nodiscard]] core::NavigationState BuildNavigationState() const;
 
-  // ── Data ───────────────────────────────────────────────────────────────────
   UkfOptions   options_;
   SigmaWeights weights_;
   UkfState     state_;
+  mutable std::mutex mutex_;
 
   bool initialised_{false};
 
-  core::TimeOrderedBuffer<core::ImuMeasurement> imu_buffer_;
-  std::optional<core::Timestamp>                last_imu_timestamp_;
-  std::optional<core::Timestamp>                last_aiding_timestamp_;
-  std::optional<core::LocalTangentPlane>        local_tangent_plane_;
+  std::vector<std::unique_ptr<IUkfMeasurementModel>> measurement_models_;
+  core::TimeOrderedBuffer<core::ImuMeasurement>      imu_buffer_;
+  std::optional<core::Timestamp>                     last_imu_timestamp_;
+  std::optional<core::Timestamp>                     last_aiding_timestamp_;
+  std::optional<core::LocalTangentPlane>             local_tangent_plane_;
 };
 
 }  // namespace falconguide::estimation::ukf
