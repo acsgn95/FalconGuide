@@ -46,6 +46,10 @@ class NavigationSystem {
       const NavigationSystemConfig& config);
   static std::unique_ptr<INavigationEstimator> BuildUkfEstimator(
       const NavigationSystemConfig& config);
+  static std::unique_ptr<INavigationEstimator> BuildCeresEstimator(
+      const NavigationSystemConfig& config);
+  static std::unique_ptr<INavigationEstimator> BuildGtsamEstimator(
+      const NavigationSystemConfig& config);
 
   EstimatorPipeline pipeline_;
 };

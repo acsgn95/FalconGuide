@@ -74,7 +74,10 @@ static NavigationSystemConfig NavFromJson(const json& j) {
   // backend
   if (j.contains("backend")) {
     const auto b = j["backend"].get<std::string>();
-    cfg.backend = (b == "UKF") ? EstimatorBackendChoice::Ukf : EstimatorBackendChoice::Ekf;
+    if      (b == "UKF")   cfg.backend = EstimatorBackendChoice::Ukf;
+    else if (b == "Ceres") cfg.backend = EstimatorBackendChoice::Ceres;
+    else if (b == "GTSAM") cfg.backend = EstimatorBackendChoice::Gtsam;
+    else                   cfg.backend = EstimatorBackendChoice::Ekf;
   }
 
   if (j.contains("dead_reckoning_threshold_s")) cfg.dead_reckoning_threshold_s = j["dead_reckoning_threshold_s"];
@@ -264,7 +267,12 @@ static NavigationSystemConfig NavFromJson(const json& j) {
 static json NavToJson(const NavigationSystemConfig& cfg) {
   json j;
 
-  j["backend"] = (cfg.backend == EstimatorBackendChoice::Ukf) ? "UKF" : "EKF";
+  switch (cfg.backend) {
+    case EstimatorBackendChoice::Ukf:   j["backend"] = "UKF";   break;
+    case EstimatorBackendChoice::Ceres: j["backend"] = "Ceres"; break;
+    case EstimatorBackendChoice::Gtsam: j["backend"] = "GTSAM"; break;
+    default:                            j["backend"] = "EKF";   break;
+  }
   j["dead_reckoning_threshold_s"] = cfg.dead_reckoning_threshold_s;
   j["min_imu_dt_s"] = cfg.min_imu_dt_s;
   j["max_imu_dt_s"] = cfg.max_imu_dt_s;
@@ -478,7 +486,7 @@ nlohmann::json SessionConfig::ToSchemaJson() {
       {"max_clients", jint(1)},
     }}}},
     {"nav", {{"type","object"},{"properties",{
-      {"backend",                       jtabs({"EKF","UKF"})},
+      {"backend",                       jtabs({"EKF","UKF","Ceres","GTSAM"})},
       {"dead_reckoning_threshold_s",    jnum(0.0)},
       {"min_imu_dt_s",                  jnum(0.0)},
       {"max_imu_dt_s",                  jnum(0.0)},

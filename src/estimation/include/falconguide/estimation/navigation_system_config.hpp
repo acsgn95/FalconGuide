@@ -21,7 +21,7 @@
 
 namespace falconguide::estimation {
 
-enum class EstimatorBackendChoice { Ekf, Ukf };
+enum class EstimatorBackendChoice { Ekf, Ukf, Ceres, Gtsam };
 
 // ── Per-sensor config blocks ──────────────────────────────────────────────────
 //

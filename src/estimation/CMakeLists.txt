@@ -36,6 +36,9 @@ add_library(falconguide_estimation STATIC
   src/backends/ukf/measurement_models/ukf_external_pose.cpp
   src/backends/ukf/measurement_models/ukf_external_velocity.cpp
   src/backends/ukf/measurement_models/ukf_external_odometry.cpp
+  # Ceres and GTSAM backends: always compiled; real code is #ifdef-gated.
+  src/backends/ceres/ceres_estimator.cpp
+  src/backends/gtsam/gtsam_estimator.cpp
 )
 add_library(FalconGuide::estimation ALIAS falconguide_estimation)
 
@@ -51,3 +54,17 @@ target_link_libraries(
     FalconGuide::core
     FalconGuide::logger
 )
+
+# ── Ceres sliding-window backend (optional) ───────────────────────────────────
+if(FALCONGUIDE_ENABLE_CERES AND TARGET Ceres::ceres)
+  target_link_libraries(falconguide_estimation PUBLIC Ceres::ceres)
+  target_compile_definitions(falconguide_estimation PUBLIC FALCONGUIDE_HAVE_CERES)
+  message(STATUS "FalconGuide: Ceres backend enabled")
+endif()
+
+# ── GTSAM factor-graph backend (optional) ─────────────────────────────────────
+if(FALCONGUIDE_ENABLE_GTSAM AND TARGET gtsam)
+  target_link_libraries(falconguide_estimation PUBLIC gtsam)
+  target_compile_definitions(falconguide_estimation PUBLIC FALCONGUIDE_HAVE_GTSAM)
+  message(STATUS "FalconGuide: GTSAM backend enabled")
+endif()

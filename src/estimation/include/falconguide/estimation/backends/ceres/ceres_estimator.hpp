@@ -62,7 +62,7 @@ class CeresSlidingWindowEstimator : public INavigationEstimator {
   [[nodiscard]] EstimatorInfo           Info()    const override;
   [[nodiscard]] const EstimatorOptions& Options() const override;
 
-  EstimatorUpdateResult AddMeasurement(const SensorMeasurement& measurement) override;
+  MeasurementUpdateReport AddMeasurement(const SensorMeasurement& measurement) override;
   EstimatorUpdateResult ProcessUntil(const core::Timestamp& timestamp)       override;
   void                  Reset()                                               override;
 

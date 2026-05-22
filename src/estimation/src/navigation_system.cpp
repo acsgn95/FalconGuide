@@ -21,6 +21,12 @@
 
 // UKF
 #include "falconguide/estimation/backends/ukf/ukf_estimator.hpp"
+
+// Ceres sliding-window (guarded — header always present, impl gated by define)
+#include "falconguide/estimation/backends/ceres/ceres_estimator.hpp"
+
+// GTSAM factor graph (guarded — header always present, impl gated by define)
+#include "falconguide/estimation/backends/gtsam/gtsam_estimator.hpp"
 #include "falconguide/estimation/backends/ukf/measurement_models/ukf_aiding_solution.hpp"
 #include "falconguide/estimation/backends/ukf/measurement_models/ukf_airspeed.hpp"
 #include "falconguide/estimation/backends/ukf/measurement_models/ukf_barometer.hpp"
@@ -51,8 +57,10 @@ const EstimatorPipeline& NavigationSystem::Pipeline() const { return pipeline_; 
 std::unique_ptr<INavigationEstimator> NavigationSystem::BuildEstimator(
     const NavigationSystemConfig& config) {
   switch (config.backend) {
-    case EstimatorBackendChoice::Ekf: return BuildEkfEstimator(config);
-    case EstimatorBackendChoice::Ukf: return BuildUkfEstimator(config);
+    case EstimatorBackendChoice::Ekf:   return BuildEkfEstimator(config);
+    case EstimatorBackendChoice::Ukf:   return BuildUkfEstimator(config);
+    case EstimatorBackendChoice::Ceres: return BuildCeresEstimator(config);
+    case EstimatorBackendChoice::Gtsam: return BuildGtsamEstimator(config);
   }
   return BuildEkfEstimator(config);
 }
@@ -283,6 +291,22 @@ std::unique_ptr<INavigationEstimator> NavigationSystem::BuildUkfEstimator(
   }
 
   return est;
+}
+
+// ── Ceres factory ─────────────────────────────────────────────────────────────
+
+std::unique_ptr<INavigationEstimator> NavigationSystem::BuildCeresEstimator(
+    [[maybe_unused]] const NavigationSystemConfig& config) {
+  ceres_backend::CeresOptions opts;
+  return std::make_unique<ceres_backend::CeresSlidingWindowEstimator>(std::move(opts));
+}
+
+// ── GTSAM factory ─────────────────────────────────────────────────────────────
+
+std::unique_ptr<INavigationEstimator> NavigationSystem::BuildGtsamEstimator(
+    [[maybe_unused]] const NavigationSystemConfig& config) {
+  gtsam_backend::GtsamOptions opts;
+  return std::make_unique<gtsam_backend::GtsamFactorGraphEstimator>(std::move(opts));
 }
 
 }  // namespace falconguide::estimation
