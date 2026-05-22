@@ -7,16 +7,16 @@
 #include "falconguide/estimation/measurement_variant_helpers.hpp"
 #include "falconguide/core/coordinates.hpp"
 #include "falconguide/core/math.hpp"
+#include "falconguide/core/time_helpers.hpp"
 #include "falconguide/logger/logger.hpp"
 
 #include <ceres/ceres.h>
 
 #include <deque>
 #include <mutex>
+#include <optional>
 
 namespace falconguide::estimation::ceres_backend {
-
-static constexpr double kGravityMps2 = 9.80665;
 
 // ── Parameter block helpers ───────────────────────────────────────────────────
 
@@ -89,11 +89,15 @@ class CeresSlidingWindowEstimator::Impl {
     static constexpr std::size_t kMaxImuBuffer = 2000;
 
     bool initialised_{false};
-    core::LocalTangentPlane ltp_;  // ENU reference frame
+    std::optional<core::LocalTangentPlane> ltp_;  // ENU reference frame
     core::Timestamp last_kf_time_;
 
     // Latest state (from last optimisation)
     core::NavigationState latest_state_;
+
+    // Public diagnostics snapshot rebuilt on demand from the solver-owned
+    // parameter blocks.
+    mutable SlidingWindowState diagnostic_state_;
 
     // ── Init ──────────────────────────────────────────────────────────────────
 
@@ -110,7 +114,7 @@ class CeresSlidingWindowEstimator::Impl {
 
         // Check distance/time threshold for new keyframe
         const Eigen::Vector3d pos_enu =
-            ltp_.ecef_to_enu_rotation() * (gnss.position_ecef_m.eigen() - ltp_.origin_ecef().eigen());
+            ltp_->ecef_to_enu_rotation() * (gnss.position_ecef_m.eigen() - ltp_->origin_ecef_m().eigen());
 
         const Eigen::Vector3d cur_pos = window_.back().P();
         const double dist = (pos_enu - cur_pos).norm();
@@ -126,7 +130,7 @@ class CeresSlidingWindowEstimator::Impl {
     MeasurementUpdateReport InitFromGnss(const core::GnssSolution& gnss) {
         // Establish ENU reference frame
         const core::Lla lla = core::EcefToLla(gnss.position_ecef_m);
-        ltp_ = core::LocalTangentPlane(lla);
+        ltp_.emplace(lla);
 
         // Create first keyframe at origin
         WindowKeyframe kf;
@@ -152,11 +156,10 @@ class CeresSlidingWindowEstimator::Impl {
         initialised_ = true;
 
         // Start preintegrator for next keyframe
-        const ImuPreintegrator::Params pp{opts_.base.enable_sensor_health_reporting ? 3e-3 : 3e-3};
-        preint_.Reset(Eigen::Vector3d::Zero(), Eigen::Vector3d::Zero(), gnss.timestamp, ImuPreintegrator::Params{});
+        preint_.Reset(Eigen::Vector3d::Zero(), Eigen::Vector3d::Zero(), gnss.timestamp);
         // Re-play buffered IMU into the preintegrator
         for (const auto& i : imu_buffer_) {
-            if (i.timestamp.steady >= gnss.timestamp.steady) preint_.Integrate(i);
+            if (!core::IsBefore(i.timestamp, gnss.timestamp)) preint_.Integrate(i);
         }
         preint_active_ = true;
 
@@ -172,7 +175,7 @@ class CeresSlidingWindowEstimator::Impl {
 
         // GNSS factors on latest keyframe
         const auto cov_pos = gnss.position_covariance_ecef_m2.eval();
-        const Eigen::Matrix3d R_enu = ltp_.ecef_to_enu_rotation();
+        const Eigen::Matrix3d R_enu = ltp_->ecef_to_enu_rotation();
         const Eigen::Matrix3d cov_enu = R_enu * cov_pos * R_enu.transpose();
 
         problem.AddResidualBlock(GnssPositionCost::Create(pos_enu, cov_enu), nullptr, kf.pose.data);
@@ -240,7 +243,7 @@ class CeresSlidingWindowEstimator::Impl {
 
     void Optimise(const core::GnssSolution& gnss, const Eigen::Vector3d& pos_enu) {
         ceres::Problem problem;
-        const Eigen::Matrix3d R_enu = ltp_.ecef_to_enu_rotation();
+        const Eigen::Matrix3d R_enu = ltp_->ecef_to_enu_rotation();
 
         const std::size_t n = window_.size();
 
@@ -305,8 +308,8 @@ class CeresSlidingWindowEstimator::Impl {
         latest_state_.orientation_body_to_enu = kf.Q();
 
         // ECEF (from ENU + reference)
-        const Eigen::Matrix3d R_enu_to_ecef = ltp_.ecef_to_enu_rotation().transpose();
-        const Eigen::Vector3d p_ecef = ltp_.origin_ecef().eigen() + R_enu_to_ecef * kf.P();
+        const Eigen::Matrix3d R_enu_to_ecef = ltp_->ecef_to_enu_rotation().transpose();
+        const Eigen::Vector3d p_ecef = ltp_->origin_ecef_m().eigen() + R_enu_to_ecef * kf.P();
         latest_state_.position_ecef_m = core::Vec3<core::EcefFrame>(p_ecef.x(), p_ecef.y(), p_ecef.z());
         const Eigen::Vector3d v_ecef = R_enu_to_ecef * kf.V();
         latest_state_.velocity_ecef_mps = core::Vec3<core::EcefFrame>(v_ecef.x(), v_ecef.y(), v_ecef.z());
@@ -317,14 +320,34 @@ class CeresSlidingWindowEstimator::Impl {
         latest_state_.status = core::NavigationStatus::Nominal;
         latest_state_.quality.initialized = true;
     }
+
+    const SlidingWindowState& WindowStateSnapshot() const {
+        diagnostic_state_.keyframes.clear();
+        diagnostic_state_.imu_factors.assign(imu_factors_.begin(), imu_factors_.end());
+
+        for (const auto& src : window_) {
+            Keyframe dst;
+            dst.timestamp = src.timestamp;
+            const Eigen::Vector3d p = src.P();
+            const Eigen::Vector3d v = src.V();
+            const Eigen::Vector3d ba = src.Ba();
+            const Eigen::Vector3d bg = src.Bg();
+            dst.position_enu_m = core::Vec3<core::EnuFrame>(p.x(), p.y(), p.z());
+            dst.velocity_enu_mps = core::Vec3<core::EnuFrame>(v.x(), v.y(), v.z());
+            dst.orientation_body_to_enu = src.Q();
+            dst.accel_bias_mps2 = core::Vec3<core::ImuFrame>(ba.x(), ba.y(), ba.z());
+            dst.gyro_bias_radps = core::Vec3<core::ImuFrame>(bg.x(), bg.y(), bg.z());
+            diagnostic_state_.keyframes.push_back(std::move(dst));
+        }
+
+        return diagnostic_state_;
+    }
 };
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
 CeresSlidingWindowEstimator::CeresSlidingWindowEstimator(CeresOptions options)
-    : options_(std::move(options)),
-      impl_(std::make_unique<Impl>(options_)),
-      window_(impl_->window_) {}  // reference to impl storage
+    : options_(std::move(options)), impl_(std::make_unique<Impl>(options_)) {}
 
 // Non-inline dtor (Impl is incomplete at header)
 CeresSlidingWindowEstimator::~CeresSlidingWindowEstimator() = default;
@@ -367,7 +390,8 @@ void CeresSlidingWindowEstimator::Reset() {
 }
 
 const SlidingWindowState& CeresSlidingWindowEstimator::WindowState() const {
-    return impl_->window_;  // Note: impl_ stores deque, not SlidingWindowState
+    std::unique_lock lk(impl_->mutex_);
+    return impl_->WindowStateSnapshot();
 }
 
 }  // namespace falconguide::estimation::ceres_backend
@@ -378,6 +402,10 @@ const SlidingWindowState& CeresSlidingWindowEstimator::WindowState() const {
 #include <stdexcept>
 
 namespace falconguide::estimation::ceres_backend {
+
+class CeresSlidingWindowEstimator::Impl {};
+
+CeresSlidingWindowEstimator::~CeresSlidingWindowEstimator() = default;
 
 CeresSlidingWindowEstimator::CeresSlidingWindowEstimator(CeresOptions) {
     throw std::runtime_error(

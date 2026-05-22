@@ -41,8 +41,11 @@ class ImuPreintegrator {
     ImuPreintegrator() = default;
 
     /// @brief Resets to a new integration window.
+    void Reset(Eigen::Vector3d accel_bias_mps2, Eigen::Vector3d gyro_bias_radps, const core::Timestamp &t0);
+
+    /// @brief Resets to a new integration window with explicit noise parameters.
     void Reset(Eigen::Vector3d accel_bias_mps2, Eigen::Vector3d gyro_bias_radps, const core::Timestamp &t0,
-               Params params = {});
+               Params params);
 
     /// @brief Integrates one IMU sample.
     /// @note Samples must arrive in chronological order.
@@ -114,6 +117,10 @@ inline Eigen::Matrix3d ImuPreintegrator::Skew(const Eigen::Vector3d &v) {
     Eigen::Matrix3d m;
     m << 0.0, -v.z(), v.y(), v.z(), 0.0, -v.x(), -v.y(), v.x(), 0.0;
     return m;
+}
+
+inline void ImuPreintegrator::Reset(Eigen::Vector3d accel_bias, Eigen::Vector3d gyro_bias, const core::Timestamp &t0) {
+    Reset(std::move(accel_bias), std::move(gyro_bias), t0, Params{});
 }
 
 inline void ImuPreintegrator::Reset(Eigen::Vector3d accel_bias, Eigen::Vector3d gyro_bias, const core::Timestamp &t0,

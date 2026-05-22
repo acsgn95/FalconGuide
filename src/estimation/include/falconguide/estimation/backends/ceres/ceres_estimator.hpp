@@ -9,6 +9,7 @@
 #include "falconguide/estimation/estimator_interface.hpp"
 
 #include <cstddef>
+#include <memory>
 #include <optional>
 #include <string>
 
@@ -66,7 +67,7 @@ class CeresSlidingWindowEstimator : public INavigationEstimator {
     /// @brief Constructs a Ceres sliding-window estimator.
     explicit CeresSlidingWindowEstimator(CeresOptions options = {});
     /// @brief Virtual destructor for backend polymorphism.
-    ~CeresSlidingWindowEstimator() override = default;
+    ~CeresSlidingWindowEstimator() override;
 
     [[nodiscard]] EstimatorInfo Info() const override;
     [[nodiscard]] const EstimatorOptions &Options() const override;
@@ -82,9 +83,10 @@ class CeresSlidingWindowEstimator : public INavigationEstimator {
     [[nodiscard]] const SlidingWindowState &WindowState() const;
 
    private:
+    class Impl;
+
     CeresOptions options_;
-    SlidingWindowState window_;
-    bool initialised_{false};
+    std::unique_ptr<Impl> impl_;
 };
 
 }  // namespace falconguide::estimation::ceres_backend
