@@ -1,6 +1,7 @@
 #pragma once
 
 #include "falconguide/core/coordinates.hpp"
+#include "falconguide/core/math.hpp"
 #include "falconguide/core/navigation_state.hpp"
 #include "falconguide/core/sensors/gnss.hpp"
 #include "falconguide/io/nmea/nmea_sentence.hpp"

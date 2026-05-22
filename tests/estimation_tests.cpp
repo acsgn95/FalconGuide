@@ -1,16 +1,22 @@
 #include "falconguide/estimation/backends/ekf/ekf_estimator.hpp"
 #include "falconguide/estimation/backends/ekf/measurement_models/barometer.hpp"
 #include "falconguide/estimation/backends/ekf/measurement_models/gnss_loosely_coupled.hpp"
+#include "falconguide/estimation/backends/ekf/measurement_models/magnetometer.hpp"
+#include "falconguide/estimation/backends/ekf/measurement_models/wheel_odometry.hpp"
 #include "falconguide/estimation/backends/ukf/ukf_estimator.hpp"
+#include "falconguide/estimation/backends/ukf/measurement_models/ukf_barometer.hpp"
 #include "falconguide/estimation/backends/ukf/measurement_models/ukf_gnss_loosely_coupled.hpp"
+#include "falconguide/estimation/backends/ukf/measurement_models/ukf_magnetometer.hpp"
+#include "falconguide/estimation/backends/ukf/measurement_models/ukf_wheel_odometry.hpp"
 #include "falconguide/estimation/estimator_interface.hpp"
 #include "falconguide/estimation/navigation_system.hpp"
 #include "falconguide/estimation/navigation_system_config.hpp"
 #include "falconguide/core/coordinates.hpp"
 #include "falconguide/core/math.hpp"
+#include "falconguide/core/sensors/environment.hpp"
 #include "falconguide/core/sensors/gnss.hpp"
 #include "falconguide/core/sensors/imu.hpp"
-#include "falconguide/core/sensors/environment.hpp"
+#include "falconguide/core/sensors/odometry.hpp"
 #include "falconguide/logger/logger.hpp"
 
 #include <cassert>
@@ -55,6 +61,35 @@ static ImuMeasurement MakeImu(std::int64_t ns) {
 
 static bool Near(double a, double b, double tol) {
   return std::abs(a - b) <= tol;
+}
+
+static BarometerMeasurement MakeBaro(std::int64_t ns, double altitude_m) {
+  BarometerMeasurement baro;
+  baro.timestamp  = MakeTimestamp(ns);
+  baro.altitude_m = altitude_m;
+  // pressure from barometric formula (ISA, rough)
+  baro.pressure_pa = 101325.0 * std::pow(1.0 - 0.0000225577 * altitude_m, 5.25588);
+  baro.validity   = MeasurementValidity::Valid;
+  return baro;
+}
+
+static MagnetometerMeasurement MakeMag(std::int64_t ns, Eigen::Vector3d field_enu) {
+  MagnetometerMeasurement mag;
+  mag.timestamp = MakeTimestamp(ns);
+  // sensor frame aligned with body; body nominally aligned with ENU after GNSS init
+  mag.magnetic_field_tesla = Vec3<MagnetometerFrame>(field_enu.x(), field_enu.y(), field_enu.z());
+  mag.validity = MeasurementValidity::Valid;
+  return mag;
+}
+
+static WheelOdometryMeasurement MakeWheelOdo(std::int64_t ns, double forward_mps) {
+  WheelOdometryMeasurement odo;
+  odo.timestamp = MakeTimestamp(ns);
+  odo.linear_velocity_body_mps  = Vec3<BodyFrame>(forward_mps, 0.0, 0.0);
+  odo.angular_rate_body_radps   = Vec3<BodyFrame>(0.0, 0.0, 0.0);
+  odo.covariance = Eigen::Matrix<double, 6, 6>::Identity() * 0.01;
+  odo.validity   = MeasurementValidity::Valid;
+  return odo;
 }
 
 // ── EKF Tests ─────────────────────────────────────────────────────────────────
@@ -270,6 +305,166 @@ static void TestUkfReset() {
   assert(!est.IsInitialized());
 }
 
+// ── EKF Barometer Tests ───────────────────────────────────────────────────────
+
+static void TestEkfBarometerAccepted() {
+  ekf::EkfEstimator est;
+  est.RegisterMeasurementModel(std::make_unique<ekf::GnssLooselyCoupled>());
+  est.RegisterMeasurementModel(std::make_unique<ekf::Barometer>());
+
+  est.AddMeasurement(MakeGnss(1'000'000'000LL, DegToRad(48.0), DegToRad(11.0), 500.0));
+  for (int i = 1; i <= 5; ++i)
+    est.AddMeasurement(MakeImu(1'000'000'000LL + i * 10'000'000LL));
+
+  const auto report = est.AddMeasurement(MakeBaro(1'060'000'000LL, 500.0));
+  assert(report.result == EstimatorUpdateResult::Accepted);
+  assert(report.model_name == "Barometer");
+}
+
+static void TestEkfBarometerCovarianceShrinks() {
+  ekf::EkfEstimator est;
+  est.RegisterMeasurementModel(std::make_unique<ekf::GnssLooselyCoupled>());
+  est.RegisterMeasurementModel(std::make_unique<ekf::Barometer>());
+
+  est.AddMeasurement(MakeGnss(1'000'000'000LL, DegToRad(48.0), DegToRad(11.0), 500.0));
+  for (int i = 1; i <= 30; ++i)
+    est.AddMeasurement(MakeImu(1'000'000'000LL + i * 10'000'000LL));
+
+  const auto state_before = est.LatestState();
+  const double var_before = state_before->covariance(2, 2);  // altitude variance
+
+  est.AddMeasurement(MakeBaro(1'310'000'000LL, 500.0));
+  const auto state_after = est.LatestState();
+  const double var_after = state_after->covariance(2, 2);
+
+  assert(var_after < var_before);
+}
+
+// ── EKF Magnetometer Tests ────────────────────────────────────────────────────
+
+static void TestEkfMagnetometerAccepted() {
+  ekf::MagnetometerOptions mag_opts;
+  mag_opts.reference_field_enu_tesla = Eigen::Vector3d(0.0, 2.0e-5, -4.3e-5);
+
+  ekf::EkfEstimator est;
+  est.RegisterMeasurementModel(std::make_unique<ekf::GnssLooselyCoupled>());
+  est.RegisterMeasurementModel(std::make_unique<ekf::Magnetometer>(mag_opts));
+
+  est.AddMeasurement(MakeGnss(1'000'000'000LL, DegToRad(48.0), DegToRad(11.0), 500.0));
+  for (int i = 1; i <= 5; ++i)
+    est.AddMeasurement(MakeImu(1'000'000'000LL + i * 10'000'000LL));
+
+  const auto report = est.AddMeasurement(
+      MakeMag(1'060'000'000LL, Eigen::Vector3d(0.0, 2.0e-5, -4.3e-5)));
+  assert(report.result == EstimatorUpdateResult::Accepted);
+  assert(report.model_name == "Magnetometer");
+}
+
+// ── EKF Wheel Odometry Tests ──────────────────────────────────────────────────
+
+static void TestEkfWheelOdometryAccepted() {
+  ekf::EkfEstimator est;
+  est.RegisterMeasurementModel(std::make_unique<ekf::GnssLooselyCoupled>());
+  est.RegisterMeasurementModel(std::make_unique<ekf::WheelOdometry>());
+
+  est.AddMeasurement(MakeGnss(1'000'000'000LL, DegToRad(48.0), DegToRad(11.0), 500.0));
+  for (int i = 1; i <= 5; ++i)
+    est.AddMeasurement(MakeImu(1'000'000'000LL + i * 10'000'000LL));
+
+  const auto report = est.AddMeasurement(MakeWheelOdo(1'060'000'000LL, 0.0));
+  assert(report.result == EstimatorUpdateResult::Accepted);
+  assert(report.model_name == "WheelOdometry");
+}
+
+static void TestEkfWheelOdometryVelocityCorrected() {
+  ekf::EkfEstimator est;
+  est.RegisterMeasurementModel(std::make_unique<ekf::GnssLooselyCoupled>());
+  est.RegisterMeasurementModel(std::make_unique<ekf::WheelOdometry>());
+
+  // Init stationary
+  est.AddMeasurement(MakeGnss(1'000'000'000LL, DegToRad(48.0), DegToRad(11.0), 500.0));
+
+  // IMU stream
+  for (int i = 1; i <= 10; ++i)
+    est.AddMeasurement(MakeImu(1'000'000'000LL + i * 10'000'000LL));
+
+  // Odometry says stationary — velocity should stay near zero
+  est.AddMeasurement(MakeWheelOdo(1'110'000'000LL, 0.0));
+
+  const auto state = est.LatestState();
+  assert(state.has_value());
+  const double speed = state->velocity_enu_mps.eigen().norm();
+  assert(speed < 0.5);
+}
+
+// ── UKF Barometer Tests ───────────────────────────────────────────────────────
+
+static void TestUkfBarometerAccepted() {
+  ukf::UkfEstimator est;
+  est.RegisterMeasurementModel(std::make_unique<ukf::UkfGnssLooselyCoupled>());
+  est.RegisterMeasurementModel(std::make_unique<ukf::UkfBarometer>());
+
+  est.AddMeasurement(MakeGnss(1'000'000'000LL, DegToRad(48.0), DegToRad(11.0), 500.0));
+  for (int i = 1; i <= 5; ++i)
+    est.AddMeasurement(MakeImu(1'000'000'000LL + i * 10'000'000LL));
+
+  const auto report = est.AddMeasurement(MakeBaro(1'060'000'000LL, 500.0));
+  assert(report.result == EstimatorUpdateResult::Accepted);
+}
+
+static void TestUkfBarometerCovarianceShrinks() {
+  ukf::UkfEstimator est;
+  est.RegisterMeasurementModel(std::make_unique<ukf::UkfGnssLooselyCoupled>());
+  est.RegisterMeasurementModel(std::make_unique<ukf::UkfBarometer>());
+
+  est.AddMeasurement(MakeGnss(1'000'000'000LL, DegToRad(48.0), DegToRad(11.0), 500.0));
+  for (int i = 1; i <= 30; ++i)
+    est.AddMeasurement(MakeImu(1'000'000'000LL + i * 10'000'000LL));
+
+  const auto state_before = est.LatestState();
+  const double var_before = state_before->covariance(2, 2);
+
+  est.AddMeasurement(MakeBaro(1'310'000'000LL, 500.0));
+  const auto state_after = est.LatestState();
+  const double var_after = state_after->covariance(2, 2);
+
+  assert(var_after < var_before);
+}
+
+// ── UKF Magnetometer Tests ────────────────────────────────────────────────────
+
+static void TestUkfMagnetometerAccepted() {
+  ukf::UkfMagnetometerOptions mag_opts;
+  mag_opts.reference_field_enu_tesla = Eigen::Vector3d(0.0, 2.0e-5, -4.3e-5);
+
+  ukf::UkfEstimator est;
+  est.RegisterMeasurementModel(std::make_unique<ukf::UkfGnssLooselyCoupled>());
+  est.RegisterMeasurementModel(std::make_unique<ukf::UkfMagnetometer>(mag_opts));
+
+  est.AddMeasurement(MakeGnss(1'000'000'000LL, DegToRad(48.0), DegToRad(11.0), 500.0));
+  for (int i = 1; i <= 5; ++i)
+    est.AddMeasurement(MakeImu(1'000'000'000LL + i * 10'000'000LL));
+
+  const auto report = est.AddMeasurement(
+      MakeMag(1'060'000'000LL, Eigen::Vector3d(0.0, 2.0e-5, -4.3e-5)));
+  assert(report.result == EstimatorUpdateResult::Accepted);
+}
+
+// ── UKF Wheel Odometry Tests ──────────────────────────────────────────────────
+
+static void TestUkfWheelOdometryAccepted() {
+  ukf::UkfEstimator est;
+  est.RegisterMeasurementModel(std::make_unique<ukf::UkfGnssLooselyCoupled>());
+  est.RegisterMeasurementModel(std::make_unique<ukf::UkfWheelOdometry>());
+
+  est.AddMeasurement(MakeGnss(1'000'000'000LL, DegToRad(48.0), DegToRad(11.0), 500.0));
+  for (int i = 1; i <= 5; ++i)
+    est.AddMeasurement(MakeImu(1'000'000'000LL + i * 10'000'000LL));
+
+  const auto report = est.AddMeasurement(MakeWheelOdo(1'060'000'000LL, 0.0));
+  assert(report.result == EstimatorUpdateResult::Accepted);
+}
+
 // ── NavigationSystem Tests ────────────────────────────────────────────────────
 
 static void TestNavigationSystemEkf() {
@@ -342,12 +537,33 @@ int main() {
   TestEkfReset();
   TestEkfCovarianceShrinks();
 
+  // EKF — barometer
+  TestEkfBarometerAccepted();
+  TestEkfBarometerCovarianceShrinks();
+
+  // EKF — magnetometer
+  TestEkfMagnetometerAccepted();
+
+  // EKF — wheel odometry
+  TestEkfWheelOdometryAccepted();
+  TestEkfWheelOdometryVelocityCorrected();
+
   // UKF
   TestUkfNotInitializedOnConstruct();
   TestUkfInitFromGnss();
   TestUkfGnssUpdate();
   TestUkfCovarianceShrinks();
   TestUkfReset();
+
+  // UKF — barometer
+  TestUkfBarometerAccepted();
+  TestUkfBarometerCovarianceShrinks();
+
+  // UKF — magnetometer
+  TestUkfMagnetometerAccepted();
+
+  // UKF — wheel odometry
+  TestUkfWheelOdometryAccepted();
 
   // NavigationSystem
   TestNavigationSystemEkf();

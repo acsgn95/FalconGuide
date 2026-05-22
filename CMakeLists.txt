@@ -10,6 +10,10 @@ project(
 option(FALCON_GUIDE_BUILD_TESTS "Build FalconGuide tests" ON)
 option(FALCON_GUIDE_FETCH_DEPS "Fetch missing dependencies on supported platforms" OFF)
 
+# Always build spdlog from source via FetchContent to avoid ABI mismatches with
+# pre-built binaries (e.g. conda packages compiled against a different libstdc++).
+set(CMAKE_DISABLE_FIND_PACKAGE_spdlog ON)
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
