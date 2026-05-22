@@ -35,7 +35,7 @@ void Shutdown();
 /// @brief Changes runtime log level without rebuilding sinks.
 void SetLevel(Level level);
 
-} // namespace falconguide::log
+}  // namespace falconguide::log
 
 // ── Logging macros
 // ────────────────────────────────────────────────────────────
@@ -49,13 +49,9 @@ void SetLevel(Level level);
 //   *report.correction_norm); FG_WARN("Dead reckoning for {:.1f}s — no aiding",
 //   age_s); FG_ERROR("Covariance ill-conditioned, regularising");
 //
-#define FG_TRACE(...)                                                          \
-  SPDLOG_LOGGER_TRACE(::falconguide::log::Get(), __VA_ARGS__)
-#define FG_DEBUG(...)                                                          \
-  SPDLOG_LOGGER_DEBUG(::falconguide::log::Get(), __VA_ARGS__)
+#define FG_TRACE(...) SPDLOG_LOGGER_TRACE(::falconguide::log::Get(), __VA_ARGS__)
+#define FG_DEBUG(...) SPDLOG_LOGGER_DEBUG(::falconguide::log::Get(), __VA_ARGS__)
 #define FG_INFO(...) SPDLOG_LOGGER_INFO(::falconguide::log::Get(), __VA_ARGS__)
 #define FG_WARN(...) SPDLOG_LOGGER_WARN(::falconguide::log::Get(), __VA_ARGS__)
-#define FG_ERROR(...)                                                          \
-  SPDLOG_LOGGER_ERROR(::falconguide::log::Get(), __VA_ARGS__)
-#define FG_CRITICAL(...)                                                       \
-  SPDLOG_LOGGER_CRITICAL(::falconguide::log::Get(), __VA_ARGS__)
+#define FG_ERROR(...) SPDLOG_LOGGER_ERROR(::falconguide::log::Get(), __VA_ARGS__)
+#define FG_CRITICAL(...) SPDLOG_LOGGER_CRITICAL(::falconguide::log::Get(), __VA_ARGS__)

@@ -14,17 +14,17 @@ namespace falconguide::estimation::ekf {
 
 /// @brief Options for EKF DVL fusion.
 struct DvlOptions {
-  // Rotation from DVL sensor frame to body frame.
-  // Identity means DVL axes are aligned with body axes.
-  Eigen::Matrix3d dvl_to_body_rotation{Eigen::Matrix3d::Identity()};
+    // Rotation from DVL sensor frame to body frame.
+    // Identity means DVL axes are aligned with body axes.
+    Eigen::Matrix3d dvl_to_body_rotation{Eigen::Matrix3d::Identity()};
 
-  // Whether to use only bottom-track pings (reject water-track returns).
-  bool bottom_track_only{false};
+    // Whether to use only bottom-track pings (reject water-track returns).
+    bool bottom_track_only{false};
 
-  std::optional<double> sigma_mps;
+    std::optional<double> sigma_mps;
 
-  // Mahalanobis gate (chi-squared, 3-DOF).  0 = disabled.
-  double innovation_gate{0.0};
+    // Mahalanobis gate (chi-squared, 3-DOF).  0 = disabled.
+    double innovation_gate{0.0};
 };
 
 // ── Dvl
@@ -42,21 +42,17 @@ struct DvlOptions {
 //
 /// @brief EKF measurement model for 3-axis DVL velocity updates.
 class Dvl : public IMeasurementModel {
-public:
-  explicit Dvl(DvlOptions options = {});
+   public:
+    explicit Dvl(DvlOptions options = {});
 
-  [[nodiscard]] bool
-  CanHandle(const SensorMeasurement &measurement) const override;
+    [[nodiscard]] bool CanHandle(const SensorMeasurement &measurement) const override;
 
-  EstimatorUpdateResult Apply(NominalState &nominal,
-                              Eigen::VectorXd &error_state,
-                              Eigen::MatrixXd &covariance,
-                              const StateLayout &layout,
-                              const SensorMeasurement &measurement,
-                              const UpdateContext &context) override;
+    EstimatorUpdateResult Apply(NominalState &nominal, Eigen::VectorXd &error_state, Eigen::MatrixXd &covariance,
+                                const StateLayout &layout, const SensorMeasurement &measurement,
+                                const UpdateContext &context) override;
 
-private:
-  DvlOptions options_;
+   private:
+    DvlOptions options_;
 };
 
-} // namespace falconguide::estimation::ekf
+}  // namespace falconguide::estimation::ekf

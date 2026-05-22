@@ -28,10 +28,10 @@ namespace falconguide::estimation {
 
 /// @brief Backend selection exposed by NavigationSystemConfig.
 enum class EstimatorBackendChoice {
-  Ekf,   ///< Error-state EKF backend.
-  Ukf,   ///< Unscented Kalman Filter backend.
-  Ceres, ///< Ceres sliding-window smoother backend.
-  Gtsam  ///< GTSAM factor-graph smoother backend.
+    Ekf,    ///< Error-state EKF backend.
+    Ukf,    ///< Unscented Kalman Filter backend.
+    Ceres,  ///< Ceres sliding-window smoother backend.
+    Gtsam   ///< GTSAM factor-graph smoother backend.
 };
 
 // ── Per-sensor config blocks
@@ -45,124 +45,121 @@ enum class EstimatorBackendChoice {
 //
 
 struct ImuSensorConfig {
-  ekf::ImuNoiseModel noise; ///< IMU process-noise configuration.
+    ekf::ImuNoiseModel noise;  ///< IMU process-noise configuration.
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 enum class GnssIntegrationMode {
-  LooselyCoupled, ///< Fuses receiver-computed GnssSolution position and
-                  ///< velocity.
-  TightlyCoupled, ///< Fuses raw pseudorange and Doppler epochs.
+    LooselyCoupled,  ///< Fuses receiver-computed GnssSolution position and
+                     ///< velocity.
+    TightlyCoupled,  ///< Fuses raw pseudorange and Doppler epochs.
 };
 
 /// @brief GNSS registration and measurement-model configuration.
 struct GnssSensorConfig {
-  bool enabled{false}; ///< Enables GNSS fusion.
-  GnssIntegrationMode mode{
-      GnssIntegrationMode::LooselyCoupled}; ///< GNSS fusion mode.
-  ekf::GnssLooselyCoupledOptions
-      loosely_coupled; ///< Loosely coupled model options.
-  ekf::GnssTightlyCoupledOptions
-      tightly_coupled; ///< Tightly coupled model options.
+    bool enabled{false};                                            ///< Enables GNSS fusion.
+    GnssIntegrationMode mode{GnssIntegrationMode::LooselyCoupled};  ///< GNSS fusion mode.
+    ekf::GnssLooselyCoupledOptions loosely_coupled;                 ///< Loosely coupled model options.
+    ekf::GnssTightlyCoupledOptions tightly_coupled;                 ///< Tightly coupled model options.
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 struct BarometerSensorConfig {
-  bool enabled{false};           ///< Enables barometer fusion.
-  ekf::BarometerOptions options; ///< Barometer model options.
+    bool enabled{false};            ///< Enables barometer fusion.
+    ekf::BarometerOptions options;  ///< Barometer model options.
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 struct MagnetometerSensorConfig {
-  bool enabled{false};              ///< Enables magnetometer fusion.
-  ekf::MagnetometerOptions options; ///< Magnetometer model options.
+    bool enabled{false};               ///< Enables magnetometer fusion.
+    ekf::MagnetometerOptions options;  ///< Magnetometer model options.
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 struct StarTrackerSensorConfig {
-  bool enabled{false};             ///< Enables star-tracker fusion.
-  ekf::StarTrackerOptions options; ///< Star-tracker model options.
+    bool enabled{false};              ///< Enables star-tracker fusion.
+    ekf::StarTrackerOptions options;  ///< Star-tracker model options.
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 struct WheelOdometrySensorConfig {
-  bool enabled{false};               ///< Enables wheel-odometry fusion.
-  ekf::WheelOdometryOptions options; ///< Wheel-odometry model options.
+    bool enabled{false};                ///< Enables wheel-odometry fusion.
+    ekf::WheelOdometryOptions options;  ///< Wheel-odometry model options.
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 struct RadarAltimeterSensorConfig {
-  bool enabled{false};                ///< Enables radar-altimeter fusion.
-  ekf::RadarAltimeterOptions options; ///< Radar-altimeter model options.
+    bool enabled{false};                 ///< Enables radar-altimeter fusion.
+    ekf::RadarAltimeterOptions options;  ///< Radar-altimeter model options.
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 struct RangeFinderSensorConfig {
-  bool enabled{false};             ///< Enables range-finder fusion.
-  ekf::RangeFinderOptions options; ///< Range-finder model options.
+    bool enabled{false};              ///< Enables range-finder fusion.
+    ekf::RangeFinderOptions options;  ///< Range-finder model options.
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 struct OpticalFlowSensorConfig {
-  bool enabled{false};             ///< Enables optical-flow fusion.
-  ekf::OpticalFlowOptions options; ///< Optical-flow model options.
+    bool enabled{false};              ///< Enables optical-flow fusion.
+    ekf::OpticalFlowOptions options;  ///< Optical-flow model options.
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 struct DvlSensorConfig {
-  bool enabled{false};     ///< Enables DVL fusion.
-  ekf::DvlOptions options; ///< DVL model options.
+    bool enabled{false};      ///< Enables DVL fusion.
+    ekf::DvlOptions options;  ///< DVL model options.
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 struct EchoSounderSensorConfig {
-  bool enabled{false};             ///< Enables echo-sounder fusion.
-  ekf::EchoSounderOptions options; ///< Echo-sounder model options.
+    bool enabled{false};              ///< Enables echo-sounder fusion.
+    ekf::EchoSounderOptions options;  ///< Echo-sounder model options.
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 struct AirspeedSensorConfig {
-  bool enabled{false};          ///< Enables airspeed fusion.
-  ekf::AirspeedOptions options; ///< Airspeed model options.
+    bool enabled{false};           ///< Enables airspeed fusion.
+    ekf::AirspeedOptions options;  ///< Airspeed model options.
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 struct ExternalPoseSensorConfig {
-  bool enabled{false};              ///< Enables external-pose fusion.
-  ekf::ExternalPoseOptions options; ///< External-pose model options.
+    bool enabled{false};               ///< Enables external-pose fusion.
+    ekf::ExternalPoseOptions options;  ///< External-pose model options.
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 struct ExternalVelocitySensorConfig {
-  bool enabled{false};                  ///< Enables external-velocity fusion.
-  ekf::ExternalVelocityOptions options; ///< External-velocity model options.
+    bool enabled{false};                   ///< Enables external-velocity fusion.
+    ekf::ExternalVelocityOptions options;  ///< External-velocity model options.
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 struct ExternalOdometrySensorConfig {
-  bool enabled{false};                  ///< Enables external-odometry fusion.
-  ekf::ExternalOdometryOptions options; ///< External-odometry model options.
+    bool enabled{false};                   ///< Enables external-odometry fusion.
+    ekf::ExternalOdometryOptions options;  ///< External-odometry model options.
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 struct AidingSolutionSensorConfig {
-  bool enabled{false}; ///< Enables generic aiding-solution fusion.
-  ekf::AidingSolutionOptions options; ///< Aiding-solution model options.
+    bool enabled{false};                 ///< Enables generic aiding-solution fusion.
+    ekf::AidingSolutionOptions options;  ///< Aiding-solution model options.
 };
 
 // ── NavigationSystemConfig
@@ -181,43 +178,34 @@ struct AidingSolutionSensorConfig {
 //   NavigationSystem nav(cfg);
 //
 struct NavigationSystemConfig {
-  ImuSensorConfig imu;                   ///< IMU propagation configuration.
-  GnssSensorConfig gnss;                 ///< GNSS fusion configuration.
-  BarometerSensorConfig barometer;       ///< Barometer fusion configuration.
-  MagnetometerSensorConfig magnetometer; ///< Magnetometer fusion configuration.
-  StarTrackerSensorConfig star_tracker;  ///< Star-tracker fusion configuration.
-  WheelOdometrySensorConfig
-      wheel_odometry; ///< Wheel-odometry fusion configuration.
-  RadarAltimeterSensorConfig
-      radar_altimeter; ///< Radar-altimeter fusion configuration.
-  RangeFinderSensorConfig range_finder; ///< Range-finder fusion configuration.
-  OpticalFlowSensorConfig optical_flow; ///< Optical-flow fusion configuration.
-  DvlSensorConfig dvl;                  ///< DVL fusion configuration.
-  EchoSounderSensorConfig echo_sounder; ///< Echo-sounder fusion configuration.
-  AirspeedSensorConfig airspeed;        ///< Airspeed fusion configuration.
-  ExternalPoseSensorConfig
-      external_pose; ///< External-pose fusion configuration.
-  ExternalVelocitySensorConfig
-      external_velocity; ///< External-velocity fusion configuration.
-  ExternalOdometrySensorConfig
-      external_odometry; ///< External-odometry fusion configuration.
-  AidingSolutionSensorConfig
-      aiding_solution; ///< Generic aiding fusion configuration.
+    ImuSensorConfig imu;                             ///< IMU propagation configuration.
+    GnssSensorConfig gnss;                           ///< GNSS fusion configuration.
+    BarometerSensorConfig barometer;                 ///< Barometer fusion configuration.
+    MagnetometerSensorConfig magnetometer;           ///< Magnetometer fusion configuration.
+    StarTrackerSensorConfig star_tracker;            ///< Star-tracker fusion configuration.
+    WheelOdometrySensorConfig wheel_odometry;        ///< Wheel-odometry fusion configuration.
+    RadarAltimeterSensorConfig radar_altimeter;      ///< Radar-altimeter fusion configuration.
+    RangeFinderSensorConfig range_finder;            ///< Range-finder fusion configuration.
+    OpticalFlowSensorConfig optical_flow;            ///< Optical-flow fusion configuration.
+    DvlSensorConfig dvl;                             ///< DVL fusion configuration.
+    EchoSounderSensorConfig echo_sounder;            ///< Echo-sounder fusion configuration.
+    AirspeedSensorConfig airspeed;                   ///< Airspeed fusion configuration.
+    ExternalPoseSensorConfig external_pose;          ///< External-pose fusion configuration.
+    ExternalVelocitySensorConfig external_velocity;  ///< External-velocity fusion configuration.
+    ExternalOdometrySensorConfig external_odometry;  ///< External-odometry fusion configuration.
+    AidingSolutionSensorConfig aiding_solution;      ///< Generic aiding fusion configuration.
 
-  // Backend selection
-  EstimatorBackendChoice backend{
-      EstimatorBackendChoice::Ekf}; ///< Backend selected by the system factory.
+    // Backend selection
+    EstimatorBackendChoice backend{EstimatorBackendChoice::Ekf};  ///< Backend selected by the system factory.
 
-  // UKF-only: Merwe scaled sigma point parameters.
-  // Ignored when backend == Ekf.
-  ukf::MerweSigmaParams ukf_sigma_params; ///< UKF sigma-point parameters.
+    // UKF-only: Merwe scaled sigma point parameters.
+    // Ignored when backend == Ekf.
+    ukf::MerweSigmaParams ukf_sigma_params;  ///< UKF sigma-point parameters.
 
-  // EKF engine tuning
-  double dead_reckoning_threshold_s{
-      5.0}; ///< Aiding gap that marks output as dead reckoning.
-  double min_imu_dt_s{1e-6}; ///< Minimum accepted IMU propagation interval.
-  double max_imu_dt_s{
-      0.05}; ///< Maximum IMU propagation step before splitting or rejection.
+    // EKF engine tuning
+    double dead_reckoning_threshold_s{5.0};  ///< Aiding gap that marks output as dead reckoning.
+    double min_imu_dt_s{1e-6};               ///< Minimum accepted IMU propagation interval.
+    double max_imu_dt_s{0.05};               ///< Maximum IMU propagation step before splitting or rejection.
 };
 
-} // namespace falconguide::estimation
+}  // namespace falconguide::estimation

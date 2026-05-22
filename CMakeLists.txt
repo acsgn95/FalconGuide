@@ -4,8 +4,7 @@ project(
   FalconGuide
   VERSION 0.1.0
   DESCRIPTION "Visual-Inertial GNSS Navigation System"
-  LANGUAGES CXX
-)
+  LANGUAGES CXX)
 
 option(FALCON_GUIDE_BUILD_TESTS "Build FalconGuide tests" ON)
 option(FALCON_GUIDE_FETCH_DEPS "Fetch missing dependencies on supported platforms" OFF)
@@ -41,6 +40,5 @@ if(FALCON_GUIDE_BUILD_DOCS)
     COMMAND ${DOXYGEN_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/Doxyfile
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     COMMENT "Generating FalconGuide API documentation with Doxygen"
-    VERBATIM
-  )
+    VERBATIM)
 endif()

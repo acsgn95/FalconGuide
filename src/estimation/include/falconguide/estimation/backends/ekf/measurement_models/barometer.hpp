@@ -13,14 +13,14 @@ namespace falconguide::estimation::ekf {
 
 /// @brief Options for EKF barometer fusion.
 struct BarometerOptions {
-  // Override altitude noise.  std::nullopt → derive from pressure measurement.
-  std::optional<double> altitude_sigma_m;
+    // Override altitude noise.  std::nullopt → derive from pressure measurement.
+    std::optional<double> altitude_sigma_m;
 
-  // ISA sea-level pressure used for pressure→altitude conversion (Pa).
-  double isa_sea_level_pressure_pa{101325.0};
+    // ISA sea-level pressure used for pressure→altitude conversion (Pa).
+    double isa_sea_level_pressure_pa{101325.0};
 
-  // Mahalanobis gate (chi-squared threshold, 1-DOF).  0 = disabled.
-  double innovation_gate{0.0};
+    // Mahalanobis gate (chi-squared threshold, 1-DOF).  0 = disabled.
+    double innovation_gate{0.0};
 };
 
 // ── Barometer
@@ -40,21 +40,17 @@ struct BarometerOptions {
 //
 /// @brief EKF measurement model for scalar altitude updates.
 class Barometer : public IMeasurementModel {
-public:
-  explicit Barometer(BarometerOptions options = {});
+   public:
+    explicit Barometer(BarometerOptions options = {});
 
-  [[nodiscard]] bool
-  CanHandle(const SensorMeasurement &measurement) const override;
+    [[nodiscard]] bool CanHandle(const SensorMeasurement &measurement) const override;
 
-  EstimatorUpdateResult Apply(NominalState &nominal,
-                              Eigen::VectorXd &error_state,
-                              Eigen::MatrixXd &covariance,
-                              const StateLayout &layout,
-                              const SensorMeasurement &measurement,
-                              const UpdateContext &context) override;
+    EstimatorUpdateResult Apply(NominalState &nominal, Eigen::VectorXd &error_state, Eigen::MatrixXd &covariance,
+                                const StateLayout &layout, const SensorMeasurement &measurement,
+                                const UpdateContext &context) override;
 
-private:
-  BarometerOptions options_;
+   private:
+    BarometerOptions options_;
 };
 
-} // namespace falconguide::estimation::ekf
+}  // namespace falconguide::estimation::ekf

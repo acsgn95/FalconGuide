@@ -45,40 +45,39 @@ namespace falconguide::io {
 //   }
 //
 class CsvMeasurementReader : public IMeasurementReader {
-public:
-  /// @brief Creates a CSV reader for a file path.
-  explicit CsvMeasurementReader(std::string path,
-                                std::string name = "CsvMeasurementReader");
+   public:
+    /// @brief Creates a CSV reader for a file path.
+    explicit CsvMeasurementReader(std::string path, std::string name = "CsvMeasurementReader");
 
-  /// @copydoc IMeasurementReader::Name
-  [[nodiscard]] std::string Name() const override;
-  /// @copydoc IMeasurementReader::Capabilities
-  [[nodiscard]] ReaderCapabilities Capabilities() const override;
+    /// @copydoc IMeasurementReader::Name
+    [[nodiscard]] std::string Name() const override;
+    /// @copydoc IMeasurementReader::Capabilities
+    [[nodiscard]] ReaderCapabilities Capabilities() const override;
 
-  /// @copydoc IMeasurementReader::Open
-  bool Open() override;
-  /// @copydoc IMeasurementReader::Close
-  void Close() override;
-  /// @copydoc IMeasurementReader::IsOpen
-  [[nodiscard]] bool IsOpen() const override;
+    /// @copydoc IMeasurementReader::Open
+    bool Open() override;
+    /// @copydoc IMeasurementReader::Close
+    void Close() override;
+    /// @copydoc IMeasurementReader::IsOpen
+    [[nodiscard]] bool IsOpen() const override;
 
-  /// @copydoc IMeasurementReader::Next
-  ReadOutcome Next() override;
+    /// @copydoc IMeasurementReader::Next
+    ReadOutcome Next() override;
 
-  /// @copydoc IMeasurementReader::StartTime
-  [[nodiscard]] std::optional<core::Timestamp> StartTime() const override;
-  /// @copydoc IMeasurementReader::EndTime
-  [[nodiscard]] std::optional<core::Timestamp> EndTime() const override;
+    /// @copydoc IMeasurementReader::StartTime
+    [[nodiscard]] std::optional<core::Timestamp> StartTime() const override;
+    /// @copydoc IMeasurementReader::EndTime
+    [[nodiscard]] std::optional<core::Timestamp> EndTime() const override;
 
-private:
-  static ReadOutcome ParseLine(const std::string &line);
+   private:
+    static ReadOutcome ParseLine(const std::string &line);
 
-  std::string path_;
-  std::string name_;
-  std::ifstream file_;
+    std::string path_;
+    std::string name_;
+    std::ifstream file_;
 
-  std::optional<core::Timestamp> start_time_;
-  std::optional<core::Timestamp> end_time_;
+    std::optional<core::Timestamp> start_time_;
+    std::optional<core::Timestamp> end_time_;
 };
 
-} // namespace falconguide::io
+}  // namespace falconguide::io

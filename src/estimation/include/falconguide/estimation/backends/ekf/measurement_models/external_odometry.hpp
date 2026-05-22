@@ -13,16 +13,16 @@ namespace falconguide::estimation::ekf {
 
 /// @brief Options for EKF external-odometry fusion.
 struct ExternalOdometryOptions {
-  bool use_position{true};
-  bool use_velocity{true};
-  bool use_orientation{true};
+    bool use_position{true};
+    bool use_velocity{true};
+    bool use_orientation{true};
 
-  std::optional<double> position_sigma_m;
-  std::optional<double> velocity_sigma_mps;
-  std::optional<double> orientation_sigma_rad;
+    std::optional<double> position_sigma_m;
+    std::optional<double> velocity_sigma_mps;
+    std::optional<double> orientation_sigma_rad;
 
-  // Mahalanobis gate (chi-squared, applied per sub-block).  0 = disabled.
-  double innovation_gate{0.0};
+    // Mahalanobis gate (chi-squared, applied per sub-block).  0 = disabled.
+    double innovation_gate{0.0};
 };
 
 // ── ExternalOdometry
@@ -36,21 +36,17 @@ struct ExternalOdometryOptions {
 //
 /// @brief EKF measurement model for 9-DOF external odometry updates.
 class ExternalOdometry : public IMeasurementModel {
-public:
-  explicit ExternalOdometry(ExternalOdometryOptions options = {});
+   public:
+    explicit ExternalOdometry(ExternalOdometryOptions options = {});
 
-  [[nodiscard]] bool
-  CanHandle(const SensorMeasurement &measurement) const override;
+    [[nodiscard]] bool CanHandle(const SensorMeasurement &measurement) const override;
 
-  EstimatorUpdateResult Apply(NominalState &nominal,
-                              Eigen::VectorXd &error_state,
-                              Eigen::MatrixXd &covariance,
-                              const StateLayout &layout,
-                              const SensorMeasurement &measurement,
-                              const UpdateContext &context) override;
+    EstimatorUpdateResult Apply(NominalState &nominal, Eigen::VectorXd &error_state, Eigen::MatrixXd &covariance,
+                                const StateLayout &layout, const SensorMeasurement &measurement,
+                                const UpdateContext &context) override;
 
-private:
-  ExternalOdometryOptions options_;
+   private:
+    ExternalOdometryOptions options_;
 };
 
-} // namespace falconguide::estimation::ekf
+}  // namespace falconguide::estimation::ekf

@@ -13,14 +13,14 @@ namespace falconguide::estimation::ekf {
 
 /// @brief Options for EKF external-velocity fusion.
 struct ExternalVelocityOptions {
-  std::optional<double> sigma_linear_mps;
-  std::optional<double> sigma_angular_radps;
+    std::optional<double> sigma_linear_mps;
+    std::optional<double> sigma_angular_radps;
 
-  bool use_angular_rate{false};
-  Eigen::Vector3d latest_gyro_radps{0.0, 0.0, 0.0};
+    bool use_angular_rate{false};
+    Eigen::Vector3d latest_gyro_radps{0.0, 0.0, 0.0};
 
-  // Mahalanobis gate (chi-squared, 3-DOF).  0 = disabled.
-  double innovation_gate{0.0};
+    // Mahalanobis gate (chi-squared, 3-DOF).  0 = disabled.
+    double innovation_gate{0.0};
 };
 
 // ── ExternalVelocity
@@ -34,21 +34,17 @@ struct ExternalVelocityOptions {
 //
 /// @brief EKF measurement model for external body-frame velocity updates.
 class ExternalVelocity : public IMeasurementModel {
-public:
-  explicit ExternalVelocity(ExternalVelocityOptions options = {});
+   public:
+    explicit ExternalVelocity(ExternalVelocityOptions options = {});
 
-  [[nodiscard]] bool
-  CanHandle(const SensorMeasurement &measurement) const override;
+    [[nodiscard]] bool CanHandle(const SensorMeasurement &measurement) const override;
 
-  EstimatorUpdateResult Apply(NominalState &nominal,
-                              Eigen::VectorXd &error_state,
-                              Eigen::MatrixXd &covariance,
-                              const StateLayout &layout,
-                              const SensorMeasurement &measurement,
-                              const UpdateContext &context) override;
+    EstimatorUpdateResult Apply(NominalState &nominal, Eigen::VectorXd &error_state, Eigen::MatrixXd &covariance,
+                                const StateLayout &layout, const SensorMeasurement &measurement,
+                                const UpdateContext &context) override;
 
-private:
-  ExternalVelocityOptions options_;
+   private:
+    ExternalVelocityOptions options_;
 };
 
-} // namespace falconguide::estimation::ekf
+}  // namespace falconguide::estimation::ekf

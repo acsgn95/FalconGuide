@@ -24,17 +24,16 @@ namespace falconguide::estimation {
 //
 /// @brief Observer notified synchronously by EstimatorPipeline.
 class INavigationObserver {
-public:
-  /// @brief Virtual destructor for interface use.
-  virtual ~INavigationObserver() = default;
+   public:
+    /// @brief Virtual destructor for interface use.
+    virtual ~INavigationObserver() = default;
 
-  /// @brief Called after the pipeline publishes a new navigation state.
-  /// @param state Shared immutable state snapshot.
-  virtual void
-  OnNavigationState(std::shared_ptr<const core::NavigationState> state) = 0;
+    /// @brief Called after the pipeline publishes a new navigation state.
+    /// @param state Shared immutable state snapshot.
+    virtual void OnNavigationState(std::shared_ptr<const core::NavigationState> state) = 0;
 
-  /// @brief Called when the estimator is reset or loses initialization.
-  virtual void OnEstimatorReset() {}
+    /// @brief Called when the estimator is reset or loses initialization.
+    virtual void OnEstimatorReset() {}
 };
 
-} // namespace falconguide::estimation
+}  // namespace falconguide::estimation

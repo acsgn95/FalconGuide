@@ -13,8 +13,8 @@ namespace falconguide::estimation::ukf {
 
 /// @brief Options for UKF loosely-coupled GNSS fusion.
 struct UkfGnssLooselyCoupledOptions {
-  std::optional<double> position_sigma_m;
-  std::optional<double> velocity_sigma_mps;
+    std::optional<double> position_sigma_m;
+    std::optional<double> velocity_sigma_mps;
 };
 
 // ── UkfGnssLooselyCoupled
@@ -31,28 +31,22 @@ struct UkfGnssLooselyCoupledOptions {
 /// @brief UKF measurement model for receiver-computed GNSS position and
 /// velocity.
 class UkfGnssLooselyCoupled : public IUkfMeasurementModel {
-public:
-  explicit UkfGnssLooselyCoupled(UkfGnssLooselyCoupledOptions options = {});
+   public:
+    explicit UkfGnssLooselyCoupled(UkfGnssLooselyCoupledOptions options = {});
 
-  [[nodiscard]] bool
-  CanHandle(const SensorMeasurement &measurement) const override;
-  [[nodiscard]] int
-  MeasurementDim(const SensorMeasurement &measurement) const override;
+    [[nodiscard]] bool CanHandle(const SensorMeasurement &measurement) const override;
+    [[nodiscard]] int MeasurementDim(const SensorMeasurement &measurement) const override;
 
-  [[nodiscard]] Eigen::VectorXd
-  Predict(const NominalState &sigma_state,
-          const UkfUpdateContext &ctx) const override;
+    [[nodiscard]] Eigen::VectorXd Predict(const NominalState &sigma_state, const UkfUpdateContext &ctx) const override;
 
-  [[nodiscard]] std::optional<Eigen::VectorXd>
-  Observe(const SensorMeasurement &measurement,
-          const UkfUpdateContext &ctx) const override;
+    [[nodiscard]] std::optional<Eigen::VectorXd> Observe(const SensorMeasurement &measurement,
+                                                         const UkfUpdateContext &ctx) const override;
 
-  [[nodiscard]] Eigen::MatrixXd
-  NoiseCovariance(const SensorMeasurement &measurement,
-                  const UkfUpdateContext &ctx) const override;
+    [[nodiscard]] Eigen::MatrixXd NoiseCovariance(const SensorMeasurement &measurement,
+                                                  const UkfUpdateContext &ctx) const override;
 
-private:
-  UkfGnssLooselyCoupledOptions options_;
+   private:
+    UkfGnssLooselyCoupledOptions options_;
 };
 
-} // namespace falconguide::estimation::ukf
+}  // namespace falconguide::estimation::ukf

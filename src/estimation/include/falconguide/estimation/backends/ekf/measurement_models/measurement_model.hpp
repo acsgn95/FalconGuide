@@ -21,10 +21,9 @@ namespace falconguide::estimation::ekf {
 // here extends all models without changing their interface signatures.
 //
 struct UpdateContext {
-  // ENU local tangent plane anchored at the first GNSS fix.
-  // Null until the estimator has been initialised from a GNSS solution.
-  const core::LocalTangentPlane *ltp{
-      nullptr}; ///< Local tangent plane, or nullptr before initialization.
+    // ENU local tangent plane anchored at the first GNSS fix.
+    // Null until the estimator has been initialised from a GNSS solution.
+    const core::LocalTangentPlane *ltp{nullptr};  ///< Local tangent plane, or nullptr before initialization.
 };
 
 // ── IMeasurementModel
@@ -46,25 +45,23 @@ struct UpdateContext {
 // EkfEstimator::RegisterMeasurementModel, and nothing else needs to change.
 //
 class IMeasurementModel {
-public:
-  /// @brief Virtual destructor for interface use.
-  virtual ~IMeasurementModel() = default;
+   public:
+    /// @brief Virtual destructor for interface use.
+    virtual ~IMeasurementModel() = default;
 
-  /// @brief Human-readable name used in MeasurementUpdateReport.
-  [[nodiscard]] virtual std::string_view Name() const { return "Unknown"; }
+    /// @brief Human-readable name used in MeasurementUpdateReport.
+    [[nodiscard]] virtual std::string_view Name() const { return "Unknown"; }
 
-  /// @brief Returns true if this model can process the given measurement
-  /// variant.
-  [[nodiscard]] virtual bool
-  CanHandle(const SensorMeasurement &measurement) const = 0;
+    /// @brief Returns true if this model can process the given measurement
+    /// variant.
+    [[nodiscard]] virtual bool CanHandle(const SensorMeasurement &measurement) const = 0;
 
-  /// @brief Performs the EKF measurement update in-place.
-  /// @return Accepted on success, Rejected on gating failure, or NotInitialized
-  /// for missing context.
-  virtual EstimatorUpdateResult
-  Apply(NominalState &nominal, Eigen::VectorXd &error_state,
-        Eigen::MatrixXd &covariance, const StateLayout &layout,
-        const SensorMeasurement &measurement, const UpdateContext &context) = 0;
+    /// @brief Performs the EKF measurement update in-place.
+    /// @return Accepted on success, Rejected on gating failure, or NotInitialized
+    /// for missing context.
+    virtual EstimatorUpdateResult Apply(NominalState &nominal, Eigen::VectorXd &error_state,
+                                        Eigen::MatrixXd &covariance, const StateLayout &layout,
+                                        const SensorMeasurement &measurement, const UpdateContext &context) = 0;
 };
 
-} // namespace falconguide::estimation::ekf
+}  // namespace falconguide::estimation::ekf

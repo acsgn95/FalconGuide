@@ -13,17 +13,17 @@ namespace falconguide::estimation::ekf {
 
 /// @brief Options for EKF aided-solution fusion.
 struct AidingSolutionOptions {
-  // Reject measurements whose match_score is below this threshold.  0 = accept
-  // all.
-  double min_match_score{0.0};
+    // Reject measurements whose match_score is below this threshold.  0 = accept
+    // all.
+    double min_match_score{0.0};
 
-  // Override position / velocity / attitude noise when provided.
-  std::optional<double> position_sigma_m;
-  std::optional<double> velocity_sigma_mps;
-  std::optional<double> attitude_sigma_rad;
+    // Override position / velocity / attitude noise when provided.
+    std::optional<double> position_sigma_m;
+    std::optional<double> velocity_sigma_mps;
+    std::optional<double> attitude_sigma_rad;
 
-  // Mahalanobis gate (chi-squared, applied per sub-block).  0 = disabled.
-  double innovation_gate{0.0};
+    // Mahalanobis gate (chi-squared, applied per sub-block).  0 = disabled.
+    double innovation_gate{0.0};
 };
 
 // ── AidingSolution
@@ -44,21 +44,17 @@ struct AidingSolutionOptions {
 /// @brief EKF measurement model for terrain, image, visual-odometry, and SLAM
 /// aiding.
 class AidingSolution : public IMeasurementModel {
-public:
-  explicit AidingSolution(AidingSolutionOptions options = {});
+   public:
+    explicit AidingSolution(AidingSolutionOptions options = {});
 
-  [[nodiscard]] bool
-  CanHandle(const SensorMeasurement &measurement) const override;
+    [[nodiscard]] bool CanHandle(const SensorMeasurement &measurement) const override;
 
-  EstimatorUpdateResult Apply(NominalState &nominal,
-                              Eigen::VectorXd &error_state,
-                              Eigen::MatrixXd &covariance,
-                              const StateLayout &layout,
-                              const SensorMeasurement &measurement,
-                              const UpdateContext &context) override;
+    EstimatorUpdateResult Apply(NominalState &nominal, Eigen::VectorXd &error_state, Eigen::MatrixXd &covariance,
+                                const StateLayout &layout, const SensorMeasurement &measurement,
+                                const UpdateContext &context) override;
 
-private:
-  AidingSolutionOptions options_;
+   private:
+    AidingSolutionOptions options_;
 };
 
-} // namespace falconguide::estimation::ekf
+}  // namespace falconguide::estimation::ekf

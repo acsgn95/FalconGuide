@@ -25,20 +25,18 @@ namespace falconguide::estimation::ekf {
 // registered, which is required for tightly coupled GNSS).
 //
 struct NominalState {
-  core::Timestamp timestamp; ///< State timestamp.
+    core::Timestamp timestamp;  ///< State timestamp.
 
-  core::Vec3<core::EnuFrame> position_enu_m;   ///< Nominal ENU position.
-  core::Vec3<core::EnuFrame> velocity_enu_mps; ///< Nominal ENU velocity.
-  Eigen::Quaterniond orientation_body_to_enu{
-      Eigen::Quaterniond::Identity()}; ///< Nominal body-to-ENU attitude.
+    core::Vec3<core::EnuFrame> position_enu_m;                                   ///< Nominal ENU position.
+    core::Vec3<core::EnuFrame> velocity_enu_mps;                                 ///< Nominal ENU velocity.
+    Eigen::Quaterniond orientation_body_to_enu{Eigen::Quaterniond::Identity()};  ///< Nominal body-to-ENU attitude.
 
-  core::Vec3<core::ImuFrame> accel_bias_mps2; ///< Accelerometer bias estimate.
-  core::Vec3<core::ImuFrame> gyro_bias_radps; ///< Gyroscope bias estimate.
+    core::Vec3<core::ImuFrame> accel_bias_mps2;  ///< Accelerometer bias estimate.
+    core::Vec3<core::ImuFrame> gyro_bias_radps;  ///< Gyroscope bias estimate.
 
-  // [0]: receiver clock bias (m), [1]: clock drift (m/s).
-  // Populated only when StateSegmentId::GnssClock is active.
-  std::optional<Eigen::Vector2d>
-      gnss_clock; ///< Optional receiver clock bias and drift state.
+    // [0]: receiver clock bias (m), [1]: clock drift (m/s).
+    // Populated only when StateSegmentId::GnssClock is active.
+    std::optional<Eigen::Vector2d> gnss_clock;  ///< Optional receiver clock bias and drift state.
 };
 
 // ── ImuNoiseModel
@@ -48,14 +46,10 @@ struct NominalState {
 // notation: noise density (random noise) and random walk (bias instability).
 //
 struct ImuNoiseModel {
-  double accel_noise_density_mps2_per_sqrthz{
-      3.0e-3}; ///< Accelerometer white-noise density.
-  double gyro_noise_density_radps_per_sqrthz{
-      1.5e-4}; ///< Gyroscope white-noise density.
-  double accel_random_walk_mps3_per_sqrthz{
-      3.0e-5}; ///< Accelerometer bias random walk.
-  double gyro_random_walk_radps2_per_sqrthz{
-      2.0e-6}; ///< Gyroscope bias random walk.
+    double accel_noise_density_mps2_per_sqrthz{3.0e-3};  ///< Accelerometer white-noise density.
+    double gyro_noise_density_radps_per_sqrthz{1.5e-4};  ///< Gyroscope white-noise density.
+    double accel_random_walk_mps3_per_sqrthz{3.0e-5};    ///< Accelerometer bias random walk.
+    double gyro_random_walk_radps2_per_sqrthz{2.0e-6};   ///< Gyroscope bias random walk.
 };
 
 // ── EkfState
@@ -68,10 +62,10 @@ struct ImuNoiseModel {
 // The covariance grows during IMU propagation and shrinks during updates.
 //
 struct EkfState {
-  NominalState nominal;        ///< Current nominal trajectory state.
-  Eigen::VectorXd error_state; ///< Error-state mean, reset after injection.
-  Eigen::MatrixXd covariance;  ///< Error-state covariance.
-  StateLayout layout;          ///< Dynamic error-state segment layout.
+    NominalState nominal;         ///< Current nominal trajectory state.
+    Eigen::VectorXd error_state;  ///< Error-state mean, reset after injection.
+    Eigen::MatrixXd covariance;   ///< Error-state covariance.
+    StateLayout layout;           ///< Dynamic error-state segment layout.
 };
 
-} // namespace falconguide::estimation::ekf
+}  // namespace falconguide::estimation::ekf

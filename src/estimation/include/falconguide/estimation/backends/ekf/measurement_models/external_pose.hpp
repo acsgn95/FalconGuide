@@ -13,14 +13,14 @@ namespace falconguide::estimation::ekf {
 
 /// @brief Options for EKF external-pose fusion.
 struct ExternalPoseOptions {
-  bool use_position{true};
-  bool use_orientation{true};
+    bool use_position{true};
+    bool use_orientation{true};
 
-  std::optional<double> position_sigma_m;
-  std::optional<double> orientation_sigma_rad;
+    std::optional<double> position_sigma_m;
+    std::optional<double> orientation_sigma_rad;
 
-  // Mahalanobis gate (chi-squared, 3 or 6-DOF).  0 = disabled.
-  double innovation_gate{0.0};
+    // Mahalanobis gate (chi-squared, 3 or 6-DOF).  0 = disabled.
+    double innovation_gate{0.0};
 };
 
 // ── ExternalPose
@@ -36,21 +36,17 @@ struct ExternalPoseOptions {
 //
 /// @brief EKF measurement model for external position and attitude updates.
 class ExternalPose : public IMeasurementModel {
-public:
-  explicit ExternalPose(ExternalPoseOptions options = {});
+   public:
+    explicit ExternalPose(ExternalPoseOptions options = {});
 
-  [[nodiscard]] bool
-  CanHandle(const SensorMeasurement &measurement) const override;
+    [[nodiscard]] bool CanHandle(const SensorMeasurement &measurement) const override;
 
-  EstimatorUpdateResult Apply(NominalState &nominal,
-                              Eigen::VectorXd &error_state,
-                              Eigen::MatrixXd &covariance,
-                              const StateLayout &layout,
-                              const SensorMeasurement &measurement,
-                              const UpdateContext &context) override;
+    EstimatorUpdateResult Apply(NominalState &nominal, Eigen::VectorXd &error_state, Eigen::MatrixXd &covariance,
+                                const StateLayout &layout, const SensorMeasurement &measurement,
+                                const UpdateContext &context) override;
 
-private:
-  ExternalPoseOptions options_;
+   private:
+    ExternalPoseOptions options_;
 };
 
-} // namespace falconguide::estimation::ekf
+}  // namespace falconguide::estimation::ekf

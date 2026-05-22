@@ -15,22 +15,22 @@ namespace falconguide::estimation::ekf {
 // ─────────────────────────────────────────────────
 /// @brief Options for EKF tightly-coupled GNSS fusion.
 struct GnssTightlyCoupledOptions {
-  // Pseudorange noise floor (m, 1-sigma) used when CN0 is unavailable.
-  // When CN0 is provided the per-SV noise is scaled as:
-  //   σ_ρ = base_pseudorange_sigma_m * 10^(-CN0_dBHz / 40) + noise_floor_m
-  double base_pseudorange_sigma_m{3.0};
-  double pseudorange_noise_floor_m{0.1};
+    // Pseudorange noise floor (m, 1-sigma) used when CN0 is unavailable.
+    // When CN0 is provided the per-SV noise is scaled as:
+    //   σ_ρ = base_pseudorange_sigma_m * 10^(-CN0_dBHz / 40) + noise_floor_m
+    double base_pseudorange_sigma_m{3.0};
+    double pseudorange_noise_floor_m{0.1};
 
-  // Doppler noise (m/s, 1-sigma).
-  double base_doppler_sigma_mps{0.5};
+    // Doppler noise (m/s, 1-sigma).
+    double base_doppler_sigma_mps{0.5};
 
-  // Per-observation innovation gate in units of innovation sigma.
-  // 0 means no gating.  3.0 corresponds to ≈99.7% acceptance for Gaussian
-  // noise.
-  double innovation_gate_sigma{3.0};
+    // Per-observation innovation gate in units of innovation sigma.
+    // 0 means no gating.  3.0 corresponds to ≈99.7% acceptance for Gaussian
+    // noise.
+    double innovation_gate_sigma{3.0};
 
-  // Minimum number of healthy SVs required to apply an update.
-  std::size_t min_satellites{4};
+    // Minimum number of healthy SVs required to apply an update.
+    std::size_t min_satellites{4};
 };
 
 // ── GnssTightlyCoupled
@@ -73,34 +73,28 @@ struct GnssTightlyCoupledOptions {
 //
 /// @brief EKF measurement model for raw GNSS pseudorange and Doppler updates.
 class GnssTightlyCoupled : public IMeasurementModel {
-public:
-  explicit GnssTightlyCoupled(GnssTightlyCoupledOptions options = {});
+   public:
+    explicit GnssTightlyCoupled(GnssTightlyCoupledOptions options = {});
 
-  [[nodiscard]] bool
-  CanHandle(const SensorMeasurement &measurement) const override;
+    [[nodiscard]] bool CanHandle(const SensorMeasurement &measurement) const override;
 
-  EstimatorUpdateResult Apply(NominalState &nominal,
-                              Eigen::VectorXd &error_state,
-                              Eigen::MatrixXd &covariance,
-                              const StateLayout &layout,
-                              const SensorMeasurement &measurement,
-                              const UpdateContext &context) override;
+    EstimatorUpdateResult Apply(NominalState &nominal, Eigen::VectorXd &error_state, Eigen::MatrixXd &covariance,
+                                const StateLayout &layout, const SensorMeasurement &measurement,
+                                const UpdateContext &context) override;
 
-private:
-  // Apply a single scalar Kalman update in-place.
-  // Returns true if the observation passed the innovation gate.
-  bool ScalarUpdate(Eigen::VectorXd &error_state, Eigen::MatrixXd &covariance,
-                    const Eigen::VectorXd &H_row, double innovation,
-                    double sigma) const;
+   private:
+    // Apply a single scalar Kalman update in-place.
+    // Returns true if the observation passed the innovation gate.
+    bool ScalarUpdate(Eigen::VectorXd &error_state, Eigen::MatrixXd &covariance, const Eigen::VectorXd &H_row,
+                      double innovation, double sigma) const;
 
-  // Returns the carrier frequency (Hz) for a given signal type.
-  static double CarrierFrequencyHz(core::GnssSignal signal);
+    // Returns the carrier frequency (Hz) for a given signal type.
+    static double CarrierFrequencyHz(core::GnssSignal signal);
 
-  // Sagnac (Earth-rotation) correction to geometric range.
-  static double SagnacCorrectionM(const Eigen::Vector3d &pos_sv_ecef_m,
-                                  const Eigen::Vector3d &pos_rcv_ecef_m);
+    // Sagnac (Earth-rotation) correction to geometric range.
+    static double SagnacCorrectionM(const Eigen::Vector3d &pos_sv_ecef_m, const Eigen::Vector3d &pos_rcv_ecef_m);
 
-  GnssTightlyCoupledOptions options_;
+    GnssTightlyCoupledOptions options_;
 };
 
-} // namespace falconguide::estimation::ekf
+}  // namespace falconguide::estimation::ekf

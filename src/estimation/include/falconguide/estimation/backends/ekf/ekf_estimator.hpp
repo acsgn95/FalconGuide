@@ -22,27 +22,25 @@ namespace falconguide::estimation::ekf {
 // ── EkfOptions
 // ────────────────────────────────────────────────────────────────
 struct EkfOptions {
-  EstimatorOptions base;   ///< Backend-independent options.
-  ImuNoiseModel imu_noise; ///< Continuous-time IMU noise model.
+    EstimatorOptions base;    ///< Backend-independent options.
+    ImuNoiseModel imu_noise;  ///< Continuous-time IMU noise model.
 
-  // Guard against duplicate or reverse-time IMU packets.
-  double min_imu_dt_s{1e-6}; ///< Minimum accepted IMU sample spacing.
+    // Guard against duplicate or reverse-time IMU packets.
+    double min_imu_dt_s{1e-6};  ///< Minimum accepted IMU sample spacing.
 
-  // Splits large propagation gaps to limit linearisation error.
-  double max_imu_dt_s{
-      0.05}; ///< Maximum propagation step before splitting or limiting.
+    // Splits large propagation gaps to limit linearisation error.
+    double max_imu_dt_s{0.05};  ///< Maximum propagation step before splitting or limiting.
 
-  // After this many seconds without any aiding the output status becomes
-  // DeadReckoning.
-  double dead_reckoning_threshold_s{
-      5.0}; ///< Aiding age that marks the solution as dead reckoning.
+    // After this many seconds without any aiding the output status becomes
+    // DeadReckoning.
+    double dead_reckoning_threshold_s{5.0};  ///< Aiding age that marks the solution as dead reckoning.
 
-  // ── Optional state extensions ─────────────────────────────────────────────
-  // Set true to add StateSegmentId::GnssClock (required for tightly coupled).
-  bool enable_gnss_clock_state{false}; ///< Adds GNSS receiver clock states.
+    // ── Optional state extensions ─────────────────────────────────────────────
+    // Set true to add StateSegmentId::GnssClock (required for tightly coupled).
+    bool enable_gnss_clock_state{false};  ///< Adds GNSS receiver clock states.
 
-  // Set true to add StateSegmentId::BaroBias.
-  bool enable_baro_bias_state{false}; ///< Adds a barometer bias state.
+    // Set true to add StateSegmentId::BaroBias.
+    bool enable_baro_bias_state{false};  ///< Adds a barometer bias state.
 };
 
 // ── EkfEstimator
@@ -62,73 +60,71 @@ struct EkfOptions {
 // from different threads; an internal mutex serialises all state access.
 //
 class EkfEstimator : public INavigationEstimator {
-public:
-  /// @brief Constructs an EKF estimator from options.
-  explicit EkfEstimator(EkfOptions options = {});
-  /// @brief Virtual destructor for backend polymorphism.
-  ~EkfEstimator() override = default;
+   public:
+    /// @brief Constructs an EKF estimator from options.
+    explicit EkfEstimator(EkfOptions options = {});
+    /// @brief Virtual destructor for backend polymorphism.
+    ~EkfEstimator() override = default;
 
-  /// @brief Registers a measurement model tried in registration order.
-  void RegisterMeasurementModel(std::unique_ptr<IMeasurementModel> model);
+    /// @brief Registers a measurement model tried in registration order.
+    void RegisterMeasurementModel(std::unique_ptr<IMeasurementModel> model);
 
-  /// @copydoc INavigationEstimator::Info
-  [[nodiscard]] EstimatorInfo Info() const override;
-  /// @copydoc INavigationEstimator::Options
-  [[nodiscard]] const EstimatorOptions &Options() const override;
+    /// @copydoc INavigationEstimator::Info
+    [[nodiscard]] EstimatorInfo Info() const override;
+    /// @copydoc INavigationEstimator::Options
+    [[nodiscard]] const EstimatorOptions &Options() const override;
 
-  // IMU → buffered for propagation.
-  // GnssSolution on first call → initialises state and LTP.
-  // All other measurement types → dispatched to registered models after
-  //   propagating the IMU buffer to the measurement timestamp.
-  MeasurementUpdateReport
-  AddMeasurement(const SensorMeasurement &measurement) override;
+    // IMU → buffered for propagation.
+    // GnssSolution on first call → initialises state and LTP.
+    // All other measurement types → dispatched to registered models after
+    //   propagating the IMU buffer to the measurement timestamp.
+    MeasurementUpdateReport AddMeasurement(const SensorMeasurement &measurement) override;
 
-  /// @brief Propagates all buffered IMU up to and including @p timestamp.
-  EstimatorUpdateResult ProcessUntil(const core::Timestamp &timestamp) override;
+    /// @brief Propagates all buffered IMU up to and including @p timestamp.
+    EstimatorUpdateResult ProcessUntil(const core::Timestamp &timestamp) override;
 
-  /// @copydoc INavigationEstimator::Reset
-  void Reset() override;
+    /// @copydoc INavigationEstimator::Reset
+    void Reset() override;
 
-  /// @copydoc INavigationEstimator::IsInitialized
-  [[nodiscard]] bool IsInitialized() const override;
-  /// @copydoc INavigationEstimator::LatestState
-  [[nodiscard]] std::optional<core::NavigationState>
-  LatestState() const override;
+    /// @copydoc INavigationEstimator::IsInitialized
+    [[nodiscard]] bool IsInitialized() const override;
+    /// @copydoc INavigationEstimator::LatestState
+    [[nodiscard]] std::optional<core::NavigationState> LatestState() const override;
 
-private:
-  // ── Layout ───────────────────────────────────────────────────────────────
-  [[nodiscard]] StateLayout BuildLayout() const;
+   private:
+    // ── Layout ───────────────────────────────────────────────────────────────
+    [[nodiscard]] StateLayout BuildLayout() const;
 
-  // ── Propagation ──────────────────────────────────────────────────────────
-  // Propagate nominal state and error covariance forward by dt_s seconds
-  // using one IMU measurement.
-  void PropagateImu(const core::ImuMeasurement &imu, double dt_s);
+    // ── Propagation ──────────────────────────────────────────────────────────
+    // Propagate nominal state and error covariance forward by dt_s seconds
+    // using one IMU measurement.
+    void PropagateImu(const core::ImuMeasurement &imu, double dt_s);
 
-  // Pop and propagate all buffered IMU with timestamp <= target.
-  void PropagateTo(const core::Timestamp &target);
+    // Pop and propagate all buffered IMU with timestamp <= target.
+    void PropagateTo(const core::Timestamp &target);
 
-  // ── Update helpers ────────────────────────────────────────────────────────
-  // Add δx to the nominal state and zero the error vector.
-  void InjectErrorAndReset();
+    // ── Update helpers ────────────────────────────────────────────────────────
+    // Add δx to the nominal state and zero the error vector.
+    void InjectErrorAndReset();
 
-  // ── Initialisation ────────────────────────────────────────────────────────
-  bool TryInitialiseFromGnss(const core::GnssSolution &gnss);
+    // ── Initialisation ────────────────────────────────────────────────────────
+    bool TryInitialiseFromGnss(const core::GnssSolution &gnss);
 
-  // ── Output ────────────────────────────────────────────────────────────────
-  [[nodiscard]] core::NavigationState BuildNavigationState() const;
+    // ── Output ────────────────────────────────────────────────────────────────
+    [[nodiscard]] core::NavigationState BuildNavigationState() const;
 
-  // ── Data ─────────────────────────────────────────────────────────────────
-  EkfOptions options_;
-  mutable std::mutex mutex_;
+    // ── Data ─────────────────────────────────────────────────────────────────
+    EkfOptions options_;
+    mutable std::mutex mutex_;
 
-  bool initialised_{false};
-  EkfState state_;
+    bool initialised_{false};
+    EkfState state_;
 
-  std::vector<std::unique_ptr<IMeasurementModel>> measurement_models_;
+    std::vector<std::unique_ptr<IMeasurementModel>> measurement_models_;
 
-  core::TimeOrderedBuffer<core::ImuMeasurement> imu_buffer_;
-  std::optional<core::Timestamp> last_aiding_timestamp_;
-  std::optional<core::LocalTangentPlane> local_tangent_plane_;
+    core::TimeOrderedBuffer<core::ImuMeasurement> imu_buffer_;
+    std::optional<core::Timestamp> last_aiding_timestamp_;
+    std::optional<core::LocalTangentPlane> local_tangent_plane_;
 };
 
-} // namespace falconguide::estimation::ekf
+}  // namespace falconguide::estimation::ekf
