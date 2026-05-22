@@ -47,8 +47,15 @@ target_include_directories(falconguide_estimation PUBLIC ${CMAKE_CURRENT_SOURCE_
 target_link_libraries(falconguide_estimation PUBLIC FalconGuide::core FalconGuide::logger)
 
 # ── Ceres sliding-window backend (optional) ───────────────────────────────────
-if(FALCONGUIDE_ENABLE_CERES AND TARGET Ceres::ceres)
-  target_link_libraries(falconguide_estimation PUBLIC Ceres::ceres)
+set(FALCONGUIDE_CERES_TARGET "")
+if(TARGET Ceres::ceres)
+  set(FALCONGUIDE_CERES_TARGET Ceres::ceres)
+elseif(TARGET ceres)
+  set(FALCONGUIDE_CERES_TARGET ceres)
+endif()
+
+if(FALCONGUIDE_ENABLE_CERES AND FALCONGUIDE_CERES_TARGET)
+  target_link_libraries(falconguide_estimation PUBLIC ${FALCONGUIDE_CERES_TARGET})
   target_compile_definitions(falconguide_estimation PUBLIC FALCONGUIDE_HAVE_CERES)
   message(STATUS "FalconGuide: Ceres backend enabled")
 endif()
