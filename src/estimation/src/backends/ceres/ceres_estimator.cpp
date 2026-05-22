@@ -19,11 +19,10 @@
 
 // Ceres 2.1+ replaced LocalParameterization with Manifold API.
 #if CERES_VERSION_MAJOR > 2 || (CERES_VERSION_MAJOR == 2 && CERES_VERSION_MINOR >= 1)
-#  define FG_CERES_SET_QUAT_MANIFOLD(problem, ptr) \
-     (problem).SetManifold((ptr), new ceres::EigenQuaternionManifold())
+#define FG_CERES_SET_QUAT_MANIFOLD(problem, ptr) (problem).SetManifold((ptr), new ceres::EigenQuaternionManifold())
 #else
-#  define FG_CERES_SET_QUAT_MANIFOLD(problem, ptr) \
-     (problem).SetParameterization((ptr), new ceres::EigenQuaternionParameterization())
+#define FG_CERES_SET_QUAT_MANIFOLD(problem, ptr) \
+    (problem).SetParameterization((ptr), new ceres::EigenQuaternionParameterization())
 #endif
 
 namespace falconguide::estimation::ceres_backend {
