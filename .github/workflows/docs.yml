@@ -1,0 +1,37 @@
+name: Docs
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - master
+      - dev
+      - "release/**"
+
+jobs:
+  doxygen:
+    name: Doxygen
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install documentation dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            doxygen \
+            graphviz \
+            default-jre \
+            plantuml
+
+      - name: Generate documentation
+        run: doxygen Doxyfile
+
+      - name: Upload HTML documentation
+        uses: actions/upload-artifact@v4
+        with:
+          name: falconguide-doxygen-html
+          path: build/doxygen/html
+          if-no-files-found: error
