@@ -8,6 +8,7 @@
 #include "falconguide/app/config_json.hpp"
 #include "falconguide/app/dataset_reader.hpp"
 #include "falconguide/app/ipc_server.hpp"
+#include "falconguide/app/ws_server.hpp"
 #include "falconguide/estimation/navigation_observer.hpp"
 #include "falconguide/estimation/navigation_system.hpp"
 
@@ -94,12 +95,14 @@ class FalconGuideSession : private estimation::INavigationObserver {
     void ReplayLoop();
     void SetStatus(Status s, const std::string &error = {});
     void HandleCommand(const nlohmann::json &cmd, int client_fd);
+    nlohmann::json HandleWsCommand(const nlohmann::json &cmd);
 
     SessionConfig cfg_;
 
     std::unique_ptr<estimation::NavigationSystem> nav_system_;
-    std::unique_ptr<IDatasetReader> dataset_reader_;
-    std::unique_ptr<IpcServer> ipc_server_;
+    std::unique_ptr<IDatasetReader>               dataset_reader_;
+    std::unique_ptr<IpcServer>                    ipc_server_;
+    std::unique_ptr<WsServer>                     ws_server_;  // optional, null when port == 0
 
     std::atomic<Status> status_{Status::Idle};
     std::string error_;
