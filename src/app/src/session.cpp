@@ -26,9 +26,8 @@ FalconGuideSession::FalconGuideSession(SessionConfig cfg) : cfg_(std::move(cfg))
 
     // Build WebSocket server (skip when port is 0)
     if (cfg_.ws.port > 0) {
-        ws_server_ = std::make_unique<WsServer>(
-            WsConfig{cfg_.ws.port, cfg_.ws.max_clients, cfg_.ws.ui_path},
-            [this](const nlohmann::json& cmd) { return HandleWsCommand(cmd); });
+        ws_server_ = std::make_unique<WsServer>(WsConfig{cfg_.ws.port, cfg_.ws.max_clients, cfg_.ws.ui_path},
+                                                [this](const nlohmann::json& cmd) { return HandleWsCommand(cmd); });
     }
 
     SetStatus(Status::Configured);
@@ -125,9 +124,8 @@ bool FalconGuideSession::Reconfigure(SessionConfig cfg) {
     ipc_server_ =
         std::make_unique<IpcServer>(cfg_.ipc, [this](const nlohmann::json& cmd, int fd) { HandleCommand(cmd, fd); });
     if (cfg_.ws.port > 0) {
-        ws_server_ = std::make_unique<WsServer>(
-            WsConfig{cfg_.ws.port, cfg_.ws.max_clients, cfg_.ws.ui_path},
-            [this](const nlohmann::json& cmd) { return HandleWsCommand(cmd); });
+        ws_server_ = std::make_unique<WsServer>(WsConfig{cfg_.ws.port, cfg_.ws.max_clients, cfg_.ws.ui_path},
+                                                [this](const nlohmann::json& cmd) { return HandleWsCommand(cmd); });
     } else {
         ws_server_.reset();
     }

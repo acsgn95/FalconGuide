@@ -38,15 +38,15 @@ class WsClient {
     bool RecvFrame(int fd, std::string& out);
 
     static std::string Base64(const uint8_t* data, std::size_t len);
-    static void        Sha1(const uint8_t* data, std::size_t len, uint8_t out[20]);
+    static void Sha1(const uint8_t* data, std::size_t len, uint8_t out[20]);
 
-    std::string    host_;
-    uint16_t       port_;
+    std::string host_;
+    uint16_t port_;
     MessageHandler on_message_;
 
     std::atomic<bool> running_{false};
     std::atomic<bool> connected_{false};
-    std::thread       thread_;
+    std::thread thread_;
 
     int socket_fd_{-1};
 };

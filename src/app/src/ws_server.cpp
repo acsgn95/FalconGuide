@@ -66,7 +66,7 @@ void WsServer::Sha1(const uint8_t* data, std::size_t len, uint8_t out[20]) {
         h[4] += e;
     }
     for (int i = 0; i < 5; ++i) {
-        out[i * 4]     = uint8_t(h[i] >> 24);
+        out[i * 4] = uint8_t(h[i] >> 24);
         out[i * 4 + 1] = uint8_t(h[i] >> 16);
         out[i * 4 + 2] = uint8_t(h[i] >> 8);
         out[i * 4 + 3] = uint8_t(h[i]);
@@ -76,8 +76,7 @@ void WsServer::Sha1(const uint8_t* data, std::size_t len, uint8_t out[20]) {
 // ── Base64 ────────────────────────────────────────────────────────────────────
 
 std::string WsServer::Base64(const uint8_t* d, std::size_t n) {
-    static constexpr const char* T =
-        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    static constexpr const char* T = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     std::string o;
     o.reserve(((n + 2) / 3) * 4);
     for (std::size_t i = 0; i < n; i += 3) {
@@ -94,8 +93,7 @@ std::string WsServer::Base64(const uint8_t* d, std::size_t n) {
 
 // ── Constructor / Destructor ──────────────────────────────────────────────────
 
-WsServer::WsServer(WsConfig cfg, CommandHandler handler)
-    : cfg_(std::move(cfg)), handler_(std::move(handler)) {}
+WsServer::WsServer(WsConfig cfg, CommandHandler handler) : cfg_(std::move(cfg)), handler_(std::move(handler)) {}
 
 WsServer::~WsServer() { Stop(); }
 
@@ -112,9 +110,9 @@ void WsServer::Start() {
     ::fcntl(server_fd_, F_SETFL, O_NONBLOCK);
 
     sockaddr_in addr{};
-    addr.sin_family      = AF_INET;
+    addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = INADDR_ANY;
-    addr.sin_port        = htons(cfg_.port);
+    addr.sin_port = htons(cfg_.port);
 
     if (::bind(server_fd_, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) < 0) {
         ::close(server_fd_);
@@ -186,13 +184,12 @@ void WsServer::Loop() {
                 if (c.dead || c.fd < 0 || !FD_ISSET(c.fd, &rfds)) continue;
                 if (!HandleRead(c)) {
                     ::close(c.fd);
-                    c.fd   = -1;
+                    c.fd = -1;
                     c.dead = true;
                 }
             }
-            clients_.erase(
-                std::remove_if(clients_.begin(), clients_.end(), [](const Client& c) { return c.dead; }),
-                clients_.end());
+            clients_.erase(std::remove_if(clients_.begin(), clients_.end(), [](const Client& c) { return c.dead; }),
+                           clients_.end());
         }
     }
 }
@@ -233,14 +230,14 @@ bool WsServer::HandleRead(Client& c) {
 // ── DoUpgrade ─────────────────────────────────────────────────────────────────
 
 bool WsServer::DoUpgrade(Client& c) {
-    const std::string hdr  = "Sec-WebSocket-Key: ";
-    const auto        pos  = c.buf.find(hdr);
+    const std::string hdr = "Sec-WebSocket-Key: ";
+    const auto pos = c.buf.find(hdr);
     if (pos == std::string::npos) return false;
     const auto end = c.buf.find("\r\n", pos + hdr.size());
     if (end == std::string::npos) return false;
-    const std::string key    = c.buf.substr(pos + hdr.size(), end - pos - hdr.size());
-    const std::string magic  = key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
-    uint8_t           sha[20];
+    const std::string key = c.buf.substr(pos + hdr.size(), end - pos - hdr.size());
+    const std::string magic = key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+    uint8_t sha[20];
     Sha1(reinterpret_cast<const uint8_t*>(magic.data()), magic.size(), sha);
     const std::string accept = Base64(sha, 20);
 
@@ -292,11 +289,11 @@ bool WsServer::RecvFrame(Client& c, std::string& payload) {
     auto& buf = c.buf;
     if (buf.size() < 2) return false;
 
-    const uint8_t b0     = uint8_t(buf[0]);
-    const uint8_t b1     = uint8_t(buf[1]);
+    const uint8_t b0 = uint8_t(buf[0]);
+    const uint8_t b1 = uint8_t(buf[1]);
     const uint8_t opcode = b0 & 0x0Fu;
-    const bool    masked  = (b1 & 0x80u) != 0;
-    uint64_t      plen    = b1 & 0x7Fu;
+    const bool masked = (b1 & 0x80u) != 0;
+    uint64_t plen = b1 & 0x7Fu;
 
     std::size_t ext = (plen == 126) ? 2u : (plen == 127) ? 8u : 0u;
     std::size_t hdr = 2u + ext + (masked ? 4u : 0u);
@@ -335,7 +332,7 @@ bool WsServer::RecvFrame(Client& c, std::string& payload) {
 void WsServer::SendText(int fd, const std::string& text) {
     if (text.empty()) return;
     const std::size_t plen = text.size();
-    std::string       frame;
+    std::string frame;
     frame.reserve(plen + 10);
     frame.push_back(char(0x81u));  // FIN + text opcode
 
@@ -362,7 +359,7 @@ void WsServer::SendClose(int fd) {
 
 void WsServer::Broadcast(const nlohmann::json& msg) {
     const std::string text = msg.dump();
-    std::lock_guard   lk(mu_);
+    std::lock_guard lk(mu_);
     for (auto& c : clients_) {
         if (!c.dead && c.upgraded && c.fd >= 0) SendText(c.fd, text);
     }

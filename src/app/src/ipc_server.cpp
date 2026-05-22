@@ -193,31 +193,37 @@ void IpcServer::Broadcast(const json& event) {
 // ── Convenience broadcast builders ────────────────────────────────────────────
 
 nlohmann::json IpcServer::NavStateJson(const core::NavigationState& state) {
-    const core::Lla  lla     = core::EcefToLla(state.position_ecef_m);
-    const double     lat_deg = lla.latitude_rad * (180.0 / M_PI);
-    const double     lon_deg = lla.longitude_rad * (180.0 / M_PI);
-    const double     r2d     = 180.0 / M_PI;
+    const core::Lla lla = core::EcefToLla(state.position_ecef_m);
+    const double lat_deg = lla.latitude_rad * (180.0 / M_PI);
+    const double lon_deg = lla.longitude_rad * (180.0 / M_PI);
+    const double r2d = 180.0 / M_PI;
 
-    const auto& q         = state.orientation_body_to_enu;
-    const double roll_deg  = std::atan2(2 * (q.w() * q.x() + q.y() * q.z()),
-                                        1 - 2 * (q.x() * q.x() + q.y() * q.y())) * r2d;
+    const auto& q = state.orientation_body_to_enu;
+    const double roll_deg =
+        std::atan2(2 * (q.w() * q.x() + q.y() * q.z()), 1 - 2 * (q.x() * q.x() + q.y() * q.y())) * r2d;
     const double pitch_deg = std::asin(std::clamp(2 * (q.w() * q.y() - q.z() * q.x()), -1.0, 1.0)) * r2d;
-    const double yaw_deg   = std::atan2(2 * (q.w() * q.z() + q.x() * q.y()),
-                                        1 - 2 * (q.y() * q.y() + q.z() * q.z())) * r2d;
+    const double yaw_deg =
+        std::atan2(2 * (q.w() * q.z() + q.x() * q.y()), 1 - 2 * (q.y() * q.y() + q.z() * q.z())) * r2d;
 
-    const auto   cov     = state.covariance;
-    const double pos_h   = std::sqrt(std::max(0.0, (cov(0, 0) + cov(1, 1)) * 0.5));
-    const double pos_v   = std::sqrt(std::max(0.0, cov(2, 2)));
+    const auto cov = state.covariance;
+    const double pos_h = std::sqrt(std::max(0.0, (cov(0, 0) + cov(1, 1)) * 0.5));
+    const double pos_v = std::sqrt(std::max(0.0, cov(2, 2)));
     const double vel_std = std::sqrt(std::max(0.0, (cov(3, 3) + cov(4, 4) + cov(5, 5)) / 3.0));
 
     auto nav_status_str = [](core::NavigationStatus s) -> std::string {
         switch (s) {
-            case core::NavigationStatus::Nominal:       return "nominal";
-            case core::NavigationStatus::DeadReckoning: return "dead_reckoning";
-            case core::NavigationStatus::Degraded:      return "degraded";
-            case core::NavigationStatus::Initializing:  return "initializing";
-            case core::NavigationStatus::Fault:         return "fault";
-            default:                                    return "unknown";
+            case core::NavigationStatus::Nominal:
+                return "nominal";
+            case core::NavigationStatus::DeadReckoning:
+                return "dead_reckoning";
+            case core::NavigationStatus::Degraded:
+                return "degraded";
+            case core::NavigationStatus::Initializing:
+                return "initializing";
+            case core::NavigationStatus::Fault:
+                return "fault";
+            default:
+                return "unknown";
         }
     };
 
@@ -243,9 +249,7 @@ nlohmann::json IpcServer::NavStateJson(const core::NavigationState& state) {
     };
 }
 
-void IpcServer::BroadcastNavState(const core::NavigationState& state) {
-    Broadcast(NavStateJson(state));
-}
+void IpcServer::BroadcastNavState(const core::NavigationState& state) { Broadcast(NavStateJson(state)); }
 
 void IpcServer::BroadcastStatus(const std::string& status, std::size_t measurements_read) {
     Broadcast({

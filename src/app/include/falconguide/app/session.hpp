@@ -100,9 +100,9 @@ class FalconGuideSession : private estimation::INavigationObserver {
     SessionConfig cfg_;
 
     std::unique_ptr<estimation::NavigationSystem> nav_system_;
-    std::unique_ptr<IDatasetReader>               dataset_reader_;
-    std::unique_ptr<IpcServer>                    ipc_server_;
-    std::unique_ptr<WsServer>                     ws_server_;  // optional, null when port == 0
+    std::unique_ptr<IDatasetReader> dataset_reader_;
+    std::unique_ptr<IpcServer> ipc_server_;
+    std::unique_ptr<WsServer> ws_server_;  // optional, null when port == 0
 
     std::atomic<Status> status_{Status::Idle};
     std::string error_;

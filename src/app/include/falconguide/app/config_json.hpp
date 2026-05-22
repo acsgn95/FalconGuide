@@ -38,7 +38,7 @@ struct SessionConfig {
     estimation::NavigationSystemConfig nav;  ///< Navigation-system configuration.
     DatasetConfig dataset;                   ///< Dataset reader configuration.
     IpcConfig ipc;                           ///< IPC server configuration.
-    WsConfig  ws;                            ///< WebSocket server configuration.
+    WsConfig ws;                             ///< WebSocket server configuration.
     double playback_speed{1.0};              ///< Replay speed multiplier.
 
     /// @brief Parses a session configuration from JSON text.

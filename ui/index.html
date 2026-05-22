@@ -105,7 +105,7 @@ select{background:#21262d;border:1px solid #30363d;color:#c9d1d9;padding:3px 6px
         <div class="kv"><span class="k">Speed</span><span class="v" id="sSpd">—</span></div>
         <div class="kv"><span class="k">Heading</span><span class="v" id="sHdg">—</span></div>
         <div class="kv"><span class="k">Status</span><span class="v" id="sNavStatus">—</span></div>
-        <div class="kv"><span class="k">Roll</span><span class="v" id="sRoll">—</span></div>
+        <div class="kv"><span class="k">Roll</span><span class="v" id="sRollDeg">—</span></div>
         <div class="kv"><span class="k">Pitch</span><span class="v" id="sPitch">—</span></div>
         <div class="kv"><span class="k">Pos σH</span><span class="v" id="sPosH">—</span></div>
         <div class="kv"><span class="k">Pos σV</span><span class="v" id="sPosV">—</span></div>
@@ -293,7 +293,7 @@ function onNavState(d){
   const spd=v?Math.sqrt(v[0]**2+v[1]**2).toFixed(2):'—';
   document.getElementById('sSpd').textContent  = spd!=='—'?`${spd} m/s`:'—';
   document.getElementById('sHdg').textContent  = d.yaw_deg!=null?`${((+d.yaw_deg+360)%360).toFixed(1)}°`:'—';
-  document.getElementById('sRoll').textContent = f(d.roll_deg,2,'°');
+  document.getElementById('sRollDeg').textContent = f(d.roll_deg,2,'°');
   document.getElementById('sPitch').textContent= f(d.pitch_deg,2,'°');
   document.getElementById('sPosH').textContent = f(d.pos_std_h_m,3,'m');
   document.getElementById('sPosV').textContent = f(d.pos_std_v_m,3,'m');
