@@ -1,23 +1,30 @@
 #pragma once
 
+/**
+ * @file optical_flow.hpp
+ * @brief EKF optical-flow body-velocity measurement model.
+ */
+
 #include "falconguide/estimation/backends/ekf/measurement_models/measurement_model.hpp"
 
 #include <optional>
 
 namespace falconguide::estimation::ekf {
 
+/// @brief Options for EKF optical-flow fusion.
 struct OpticalFlowOptions {
-  // Fallback ground distance when measurement.ground_distance_m is absent (m).
-  double fallback_altitude_m{10.0};
+    // Fallback ground distance when measurement.ground_distance_m is absent (m).
+    double fallback_altitude_m{10.0};
 
-  // Noise on each flow component (rad/s) before altitude scaling.
-  double sigma_radps{0.01};
+    // Noise on each flow component (rad/s) before altitude scaling.
+    double sigma_radps{0.01};
 
-  // Mahalanobis gate (chi-squared, 2-DOF).  0 = disabled.
-  double innovation_gate{0.0};
+    // Mahalanobis gate (chi-squared, 2-DOF).  0 = disabled.
+    double innovation_gate{0.0};
 };
 
-// ── OpticalFlow ───────────────────────────────────────────────────────────────
+// ── OpticalFlow
+// ───────────────────────────────────────────────────────────────
 //
 // 2-axis body horizontal velocity update derived from integrated optical flow.
 //
@@ -33,22 +40,19 @@ struct OpticalFlowOptions {
 // H_vel_xy = R^T.topRows(2)                          (2×3 velocity block)
 // H_att_xy = SkewSymmetric(R^T * v_enu).topRows(2)   (2×3 attitude block)
 //
+/// @brief EKF measurement model for 2-axis optical-flow velocity updates.
 class OpticalFlow : public IMeasurementModel {
- public:
-  explicit OpticalFlow(OpticalFlowOptions options = {});
+   public:
+    explicit OpticalFlow(OpticalFlowOptions options = {});
 
-  [[nodiscard]] bool CanHandle(const SensorMeasurement& measurement) const override;
+    [[nodiscard]] bool CanHandle(const SensorMeasurement &measurement) const override;
 
-  EstimatorUpdateResult Apply(
-      NominalState& nominal,
-      Eigen::VectorXd& error_state,
-      Eigen::MatrixXd& covariance,
-      const StateLayout& layout,
-      const SensorMeasurement& measurement,
-      const UpdateContext& context) override;
+    EstimatorUpdateResult Apply(NominalState &nominal, Eigen::VectorXd &error_state, Eigen::MatrixXd &covariance,
+                                const StateLayout &layout, const SensorMeasurement &measurement,
+                                const UpdateContext &context) override;
 
- private:
-  OpticalFlowOptions options_;
+   private:
+    OpticalFlowOptions options_;
 };
 
 }  // namespace falconguide::estimation::ekf

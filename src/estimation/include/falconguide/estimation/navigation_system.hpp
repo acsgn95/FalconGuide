@@ -1,11 +1,17 @@
 #pragma once
 
+/**
+ * @file navigation_system.hpp
+ * @brief Top-level factory and owner for the navigation estimation stack.
+ */
+
 #include "falconguide/estimation/estimator_pipeline.hpp"
 #include "falconguide/estimation/navigation_system_config.hpp"
 
 namespace falconguide::estimation {
 
-// ── NavigationSystem ──────────────────────────────────────────────────────────
+// ── NavigationSystem
+// ──────────────────────────────────────────────────────────
 //
 // Top-level factory and owner of the navigation stack.
 //
@@ -27,31 +33,30 @@ namespace falconguide::estimation {
 //   nav.Pipeline().Push(imu_measurement);
 //   nav.Pipeline().Push(gnss_solution);
 //
+/// @brief Builds and owns the configured estimator pipeline.
 class NavigationSystem {
- public:
-  explicit NavigationSystem(const NavigationSystemConfig& config);
+   public:
+    /// @brief Constructs the navigation stack from a system configuration.
+    explicit NavigationSystem(const NavigationSystemConfig &config);
 
-  NavigationSystem(const NavigationSystem&)            = delete;
-  NavigationSystem& operator=(const NavigationSystem&) = delete;
-  NavigationSystem(NavigationSystem&&)                 = delete;
-  NavigationSystem& operator=(NavigationSystem&&)      = delete;
+    NavigationSystem(const NavigationSystem &) = delete;
+    NavigationSystem &operator=(const NavigationSystem &) = delete;
+    NavigationSystem(NavigationSystem &&) = delete;
+    NavigationSystem &operator=(NavigationSystem &&) = delete;
 
-  [[nodiscard]] EstimatorPipeline&       Pipeline();
-  [[nodiscard]] const EstimatorPipeline& Pipeline() const;
+    /// @brief Returns the mutable estimator pipeline.
+    [[nodiscard]] EstimatorPipeline &Pipeline();
+    /// @brief Returns the estimator pipeline.
+    [[nodiscard]] const EstimatorPipeline &Pipeline() const;
 
- private:
-  static std::unique_ptr<INavigationEstimator> BuildEstimator(
-      const NavigationSystemConfig& config);
-  static std::unique_ptr<INavigationEstimator> BuildEkfEstimator(
-      const NavigationSystemConfig& config);
-  static std::unique_ptr<INavigationEstimator> BuildUkfEstimator(
-      const NavigationSystemConfig& config);
-  static std::unique_ptr<INavigationEstimator> BuildCeresEstimator(
-      const NavigationSystemConfig& config);
-  static std::unique_ptr<INavigationEstimator> BuildGtsamEstimator(
-      const NavigationSystemConfig& config);
+   private:
+    static std::unique_ptr<INavigationEstimator> BuildEstimator(const NavigationSystemConfig &config);
+    static std::unique_ptr<INavigationEstimator> BuildEkfEstimator(const NavigationSystemConfig &config);
+    static std::unique_ptr<INavigationEstimator> BuildUkfEstimator(const NavigationSystemConfig &config);
+    static std::unique_ptr<INavigationEstimator> BuildCeresEstimator(const NavigationSystemConfig &config);
+    static std::unique_ptr<INavigationEstimator> BuildGtsamEstimator(const NavigationSystemConfig &config);
 
-  EstimatorPipeline pipeline_;
+    EstimatorPipeline pipeline_;
 };
 
 }  // namespace falconguide::estimation

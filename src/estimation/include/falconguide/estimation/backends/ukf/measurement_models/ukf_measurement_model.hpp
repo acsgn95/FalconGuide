@@ -1,5 +1,10 @@
 #pragma once
 
+/**
+ * @file ukf_measurement_model.hpp
+ * @brief Plugin interface for UKF nonlinear measurement models.
+ */
+
 #include "falconguide/core/coordinates.hpp"
 #include "falconguide/estimation/backends/ukf/ukf_state.hpp"
 #include "falconguide/estimation/estimator_interface.hpp"
@@ -9,12 +14,14 @@
 
 namespace falconguide::estimation::ukf {
 
-// ── UkfUpdateContext ──────────────────────────────────────────────────────────
+// ── UkfUpdateContext
+// ──────────────────────────────────────────────────────────
 struct UkfUpdateContext {
-  const core::LocalTangentPlane* ltp{nullptr};
+    const core::LocalTangentPlane *ltp{nullptr};  ///< Local tangent plane, or nullptr before initialization.
 };
 
-// ── IUkfMeasurementModel ──────────────────────────────────────────────────────
+// ── IUkfMeasurementModel
+// ──────────────────────────────────────────────────────
 //
 // Plugin interface for UKF measurement update steps.
 //
@@ -30,39 +37,39 @@ struct UkfUpdateContext {
 //   3. Nothing else changes.
 //
 class IUkfMeasurementModel {
- public:
-  virtual ~IUkfMeasurementModel() = default;
+   public:
+    /// @brief Virtual destructor for interface use.
+    virtual ~IUkfMeasurementModel() = default;
 
-  [[nodiscard]] virtual std::string_view Name() const { return "Unknown"; }
+    /// @brief Human-readable model name used in reports.
+    [[nodiscard]] virtual std::string_view Name() const { return "Unknown"; }
 
-  [[nodiscard]] virtual bool CanHandle(const SensorMeasurement& measurement) const = 0;
+    /// @brief Returns true when this model can process a measurement variant.
+    [[nodiscard]] virtual bool CanHandle(const SensorMeasurement &measurement) const = 0;
 
-  // Dimension of the predicted measurement vector for this sensor.
-  [[nodiscard]] virtual int MeasurementDim(const SensorMeasurement& measurement) const = 0;
+    /// @brief Dimension of the predicted measurement vector for this sensor.
+    [[nodiscard]] virtual int MeasurementDim(const SensorMeasurement &measurement) const = 0;
 
-  // Nonlinear measurement function h(xᵢ).
-  // Called once per sigma point during the unscented transform.
-  [[nodiscard]] virtual Eigen::VectorXd Predict(
-      const NominalState& sigma_state,
-      const UkfUpdateContext& ctx) const = 0;
+    /// @brief Nonlinear measurement function h(x_i), evaluated for each sigma
+    /// point.
+    [[nodiscard]] virtual Eigen::VectorXd Predict(const NominalState &sigma_state,
+                                                  const UkfUpdateContext &ctx) const = 0;
 
-  // Extract the actual observation z from the measurement.
-  // Returns nullopt if the measurement should be rejected (e.g. NoFix).
-  [[nodiscard]] virtual std::optional<Eigen::VectorXd> Observe(
-      const SensorMeasurement& measurement,
-      const UkfUpdateContext& ctx) const = 0;
+    /// @brief Extracts the actual observation vector from a measurement.
+    /// @return Observation vector, or std::nullopt if the measurement should be
+    /// rejected.
+    [[nodiscard]] virtual std::optional<Eigen::VectorXd> Observe(const SensorMeasurement &measurement,
+                                                                 const UkfUpdateContext &ctx) const = 0;
 
-  // Measurement noise covariance R (measurement_dim × measurement_dim).
-  [[nodiscard]] virtual Eigen::MatrixXd NoiseCovariance(
-      const SensorMeasurement& measurement,
-      const UkfUpdateContext& ctx) const = 0;
+    /// @brief Returns measurement noise covariance R.
+    [[nodiscard]] virtual Eigen::MatrixXd NoiseCovariance(const SensorMeasurement &measurement,
+                                                          const UkfUpdateContext &ctx) const = 0;
 
-  // Innovation z_obs − z_pred.  Override to handle angle wrapping.
-  [[nodiscard]] virtual Eigen::VectorXd Innovation(
-      const Eigen::VectorXd& z_obs,
-      const Eigen::VectorXd& z_pred) const {
-    return z_obs - z_pred;
-  }
+    /// @brief Computes innovation z_obs - z_pred; override for angle wrapping.
+    [[nodiscard]] virtual Eigen::VectorXd Innovation(const Eigen::VectorXd &z_obs,
+                                                     const Eigen::VectorXd &z_pred) const {
+        return z_obs - z_pred;
+    }
 };
 
 }  // namespace falconguide::estimation::ukf

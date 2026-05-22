@@ -1,23 +1,30 @@
 #pragma once
 
+/**
+ * @file external_pose.hpp
+ * @brief EKF external pose measurement model.
+ */
+
 #include "falconguide/estimation/backends/ekf/measurement_models/measurement_model.hpp"
 
 #include <optional>
 
 namespace falconguide::estimation::ekf {
 
+/// @brief Options for EKF external-pose fusion.
 struct ExternalPoseOptions {
-  bool use_position{true};
-  bool use_orientation{true};
+    bool use_position{true};
+    bool use_orientation{true};
 
-  std::optional<double> position_sigma_m;
-  std::optional<double> orientation_sigma_rad;
+    std::optional<double> position_sigma_m;
+    std::optional<double> orientation_sigma_rad;
 
-  // Mahalanobis gate (chi-squared, 3 or 6-DOF).  0 = disabled.
-  double innovation_gate{0.0};
+    // Mahalanobis gate (chi-squared, 3 or 6-DOF).  0 = disabled.
+    double innovation_gate{0.0};
 };
 
-// ── ExternalPose ──────────────────────────────────────────────────────────────
+// ── ExternalPose
+// ──────────────────────────────────────────────────────────────
 //
 // Full 6-DOF pose update from an external system (motion capture, fiducial,
 // UWB-anchored localisation, etc.).
@@ -27,22 +34,19 @@ struct ExternalPoseOptions {
 //   δθ = LogMapSo3(q_pred^{−1} ⊗ q_obs)
 //   H_att = I₃                            (3×3 attitude block)
 //
+/// @brief EKF measurement model for external position and attitude updates.
 class ExternalPose : public IMeasurementModel {
- public:
-  explicit ExternalPose(ExternalPoseOptions options = {});
+   public:
+    explicit ExternalPose(ExternalPoseOptions options = {});
 
-  [[nodiscard]] bool CanHandle(const SensorMeasurement& measurement) const override;
+    [[nodiscard]] bool CanHandle(const SensorMeasurement &measurement) const override;
 
-  EstimatorUpdateResult Apply(
-      NominalState& nominal,
-      Eigen::VectorXd& error_state,
-      Eigen::MatrixXd& covariance,
-      const StateLayout& layout,
-      const SensorMeasurement& measurement,
-      const UpdateContext& context) override;
+    EstimatorUpdateResult Apply(NominalState &nominal, Eigen::VectorXd &error_state, Eigen::MatrixXd &covariance,
+                                const StateLayout &layout, const SensorMeasurement &measurement,
+                                const UpdateContext &context) override;
 
- private:
-  ExternalPoseOptions options_;
+   private:
+    ExternalPoseOptions options_;
 };
 
 }  // namespace falconguide::estimation::ekf

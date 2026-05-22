@@ -1,5 +1,10 @@
 #pragma once
 
+/**
+ * @file measurement_writer.hpp
+ * @brief Push-based writer abstraction for navigation outputs and measurements.
+ */
+
 #include "falconguide/core/navigation_state.hpp"
 #include "falconguide/estimation/estimator_interface.hpp"
 
@@ -8,12 +13,13 @@
 namespace falconguide::io {
 
 enum class WriteResult {
-  Ok,
-  BufferFull,  // back-pressure: caller should retry or drop
-  Error,
+    Ok,          ///< Write completed successfully.
+    BufferFull,  ///< Back-pressure: caller should retry or drop.
+    Error,       ///< Unrecoverable write error.
 };
 
-// ── IMeasurementWriter ────────────────────────────────────────────────────────
+// ── IMeasurementWriter
+// ────────────────────────────────────────────────────────
 //
 // Push-based sink for navigation outputs or raw measurements.
 // Implementations may write to a file, a serial port, ROS topic, network, etc.
@@ -23,26 +29,30 @@ enum class WriteResult {
 //   WriteMeasurement — echo raw sensor data (logging, recording)
 //
 class IMeasurementWriter {
- public:
-  virtual ~IMeasurementWriter() = default;
+   public:
+    /// @brief Virtual destructor for interface use.
+    virtual ~IMeasurementWriter() = default;
 
-  [[nodiscard]] virtual std::string Name() const = 0;
+    /// @brief Human-readable writer name.
+    [[nodiscard]] virtual std::string Name() const = 0;
 
-  virtual bool Open() = 0;
-  virtual void Close() = 0;
-  [[nodiscard]] virtual bool IsOpen() const = 0;
+    /// @brief Opens the output sink.
+    virtual bool Open() = 0;
+    /// @brief Closes the output sink.
+    virtual void Close() = 0;
+    /// @brief Returns true when the sink is open.
+    [[nodiscard]] virtual bool IsOpen() const = 0;
 
-  // Write a computed navigation solution.
-  virtual WriteResult WriteState(const core::NavigationState& state) = 0;
+    /// @brief Writes a computed navigation solution.
+    virtual WriteResult WriteState(const core::NavigationState &state) = 0;
 
-  // Optionally write a raw sensor measurement (for data recording).
-  // Default: no-op (writers that only output navigation may skip this).
-  virtual WriteResult WriteMeasurement(const estimation::SensorMeasurement& /*measurement*/) {
-    return WriteResult::Ok;
-  }
+    /// @brief Optionally writes a raw sensor measurement.
+    virtual WriteResult WriteMeasurement(const estimation::SensorMeasurement & /*measurement*/) {
+        return WriteResult::Ok;
+    }
 
-  // Flush any internal buffers to the underlying sink.
-  virtual void Flush() {}
+    /// @brief Flushes any internal buffers to the underlying sink.
+    virtual void Flush() {}
 };
 
 }  // namespace falconguide::io

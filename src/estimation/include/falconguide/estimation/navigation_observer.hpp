@@ -1,12 +1,18 @@
 #pragma once
 
+/**
+ * @file navigation_observer.hpp
+ * @brief Observer interface for downstream consumers of navigation states.
+ */
+
 #include "falconguide/core/navigation_state.hpp"
 
 #include <memory>
 
 namespace falconguide::estimation {
 
-// ── INavigationObserver ───────────────────────────────────────────────────────
+// ── INavigationObserver
+// ───────────────────────────────────────────────────────
 //
 // Downstream consumers (control loop, telemetry, data recorder, …) implement
 // this interface and register with EstimatorPipeline.
@@ -16,15 +22,18 @@ namespace falconguide::estimation {
 // heavy work (file I/O, network serialisation) must be offloaded to an
 // internal worker thread.
 //
+/// @brief Observer notified synchronously by EstimatorPipeline.
 class INavigationObserver {
- public:
-  virtual ~INavigationObserver() = default;
+   public:
+    /// @brief Virtual destructor for interface use.
+    virtual ~INavigationObserver() = default;
 
-  virtual void OnNavigationState(
-      std::shared_ptr<const core::NavigationState> state) = 0;
+    /// @brief Called after the pipeline publishes a new navigation state.
+    /// @param state Shared immutable state snapshot.
+    virtual void OnNavigationState(std::shared_ptr<const core::NavigationState> state) = 0;
 
-  // Called when the estimator is reset or loses initialisation.
-  virtual void OnEstimatorReset() {}
+    /// @brief Called when the estimator is reset or loses initialization.
+    virtual void OnEstimatorReset() {}
 };
 
 }  // namespace falconguide::estimation

@@ -1,4 +1,5 @@
-add_library(falconguide_estimation STATIC
+add_library(
+  falconguide_estimation STATIC
   # Pipeline / system
   src/estimator_pipeline.cpp
   src/navigation_system.cpp
@@ -38,26 +39,23 @@ add_library(falconguide_estimation STATIC
   src/backends/ukf/measurement_models/ukf_external_odometry.cpp
   # Ceres and GTSAM backends: always compiled; real code is #ifdef-gated.
   src/backends/ceres/ceres_estimator.cpp
-  src/backends/gtsam/gtsam_estimator.cpp
-)
+  src/backends/gtsam/gtsam_estimator.cpp)
 add_library(FalconGuide::estimation ALIAS falconguide_estimation)
 
-target_include_directories(
-  falconguide_estimation
-  PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
+target_include_directories(falconguide_estimation PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
-target_link_libraries(
-  falconguide_estimation
-  PUBLIC
-    FalconGuide::core
-    FalconGuide::logger
-)
+target_link_libraries(falconguide_estimation PUBLIC FalconGuide::core FalconGuide::logger)
 
 # ── Ceres sliding-window backend (optional) ───────────────────────────────────
-if(FALCONGUIDE_ENABLE_CERES AND TARGET Ceres::ceres)
-  target_link_libraries(falconguide_estimation PUBLIC Ceres::ceres)
+set(FALCONGUIDE_CERES_TARGET "")
+if(TARGET Ceres::ceres)
+  set(FALCONGUIDE_CERES_TARGET Ceres::ceres)
+elseif(TARGET ceres)
+  set(FALCONGUIDE_CERES_TARGET ceres)
+endif()
+
+if(FALCONGUIDE_ENABLE_CERES AND FALCONGUIDE_CERES_TARGET)
+  target_link_libraries(falconguide_estimation PUBLIC ${FALCONGUIDE_CERES_TARGET})
   target_compile_definitions(falconguide_estimation PUBLIC FALCONGUIDE_HAVE_CERES)
   message(STATUS "FalconGuide: Ceres backend enabled")
 endif()

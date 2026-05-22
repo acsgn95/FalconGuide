@@ -1,5 +1,10 @@
 #pragma once
 
+/**
+ * @file csv_measurement_reader.hpp
+ * @brief CSV dataset reader for replay and tests.
+ */
+
 #include "falconguide/io/measurement_reader.hpp"
 
 #include <fstream>
@@ -7,7 +12,8 @@
 
 namespace falconguide::io {
 
-// ── CsvMeasurementReader ──────────────────────────────────────────────────────
+// ── CsvMeasurementReader
+// ──────────────────────────────────────────────────────
 //
 // Reads sensor measurements from a plain-text CSV file for replay and testing.
 //
@@ -39,30 +45,39 @@ namespace falconguide::io {
 //   }
 //
 class CsvMeasurementReader : public IMeasurementReader {
- public:
-  explicit CsvMeasurementReader(std::string path, std::string name = "CsvMeasurementReader");
+   public:
+    /// @brief Creates a CSV reader for a file path.
+    explicit CsvMeasurementReader(std::string path, std::string name = "CsvMeasurementReader");
 
-  [[nodiscard]] std::string          Name()         const override;
-  [[nodiscard]] ReaderCapabilities   Capabilities() const override;
+    /// @copydoc IMeasurementReader::Name
+    [[nodiscard]] std::string Name() const override;
+    /// @copydoc IMeasurementReader::Capabilities
+    [[nodiscard]] ReaderCapabilities Capabilities() const override;
 
-  bool Open()  override;
-  void Close() override;
-  [[nodiscard]] bool IsOpen() const override;
+    /// @copydoc IMeasurementReader::Open
+    bool Open() override;
+    /// @copydoc IMeasurementReader::Close
+    void Close() override;
+    /// @copydoc IMeasurementReader::IsOpen
+    [[nodiscard]] bool IsOpen() const override;
 
-  ReadOutcome Next() override;
+    /// @copydoc IMeasurementReader::Next
+    ReadOutcome Next() override;
 
-  [[nodiscard]] std::optional<core::Timestamp> StartTime() const override;
-  [[nodiscard]] std::optional<core::Timestamp> EndTime()   const override;
+    /// @copydoc IMeasurementReader::StartTime
+    [[nodiscard]] std::optional<core::Timestamp> StartTime() const override;
+    /// @copydoc IMeasurementReader::EndTime
+    [[nodiscard]] std::optional<core::Timestamp> EndTime() const override;
 
- private:
-  static ReadOutcome ParseLine(const std::string& line);
+   private:
+    static ReadOutcome ParseLine(const std::string &line);
 
-  std::string   path_;
-  std::string   name_;
-  std::ifstream file_;
+    std::string path_;
+    std::string name_;
+    std::ifstream file_;
 
-  std::optional<core::Timestamp> start_time_;
-  std::optional<core::Timestamp> end_time_;
+    std::optional<core::Timestamp> start_time_;
+    std::optional<core::Timestamp> end_time_;
 };
 
 }  // namespace falconguide::io
