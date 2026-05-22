@@ -384,7 +384,7 @@ MeasurementUpdateReport UkfEstimator::ApplyMeasurementModel(
   }
 
   // ── Kalman gain ───────────────────────────────────────────────────────────
-  const Eigen::MatrixXd K = Pxz * S.inverse();
+  const Eigen::MatrixXd K = S.ldlt().solve(Pxz.transpose()).transpose();
 
   // ── State and covariance update ───────────────────────────────────────────
   const Eigen::VectorXd delta_x = K * model.Innovation(z_obs, z_pred);

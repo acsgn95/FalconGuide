@@ -1,18 +1,35 @@
 #pragma once
 
 #include "falconguide/estimation/backends/ekf/ekf_state.hpp"
+#include "falconguide/estimation/backends/ukf/ukf_state.hpp"
+#include "falconguide/estimation/backends/ekf/measurement_models/aiding_solution.hpp"
+#include "falconguide/estimation/backends/ekf/measurement_models/barometer.hpp"
+#include "falconguide/estimation/backends/ekf/measurement_models/airspeed.hpp"
+#include "falconguide/estimation/backends/ekf/measurement_models/dvl.hpp"
+#include "falconguide/estimation/backends/ekf/measurement_models/echo_sounder.hpp"
+#include "falconguide/estimation/backends/ekf/measurement_models/external_odometry.hpp"
+#include "falconguide/estimation/backends/ekf/measurement_models/external_pose.hpp"
+#include "falconguide/estimation/backends/ekf/measurement_models/external_velocity.hpp"
 #include "falconguide/estimation/backends/ekf/measurement_models/gnss_loosely_coupled.hpp"
 #include "falconguide/estimation/backends/ekf/measurement_models/gnss_tightly_coupled.hpp"
+#include "falconguide/estimation/backends/ekf/measurement_models/magnetometer.hpp"
+#include "falconguide/estimation/backends/ekf/measurement_models/optical_flow.hpp"
+#include "falconguide/estimation/backends/ekf/measurement_models/radar_altimeter.hpp"
+#include "falconguide/estimation/backends/ekf/measurement_models/range_finder.hpp"
+#include "falconguide/estimation/backends/ekf/measurement_models/star_tracker.hpp"
+#include "falconguide/estimation/backends/ekf/measurement_models/wheel_odometry.hpp"
 
 namespace falconguide::estimation {
 
+enum class EstimatorBackendChoice { Ekf, Ukf };
+
 // ── Per-sensor config blocks ──────────────────────────────────────────────────
 //
-// Each sensor family has its own struct.  Disabled sensors are zero-cost:
-// no measurement model is registered and no state segment is allocated.
+// Each block has an enabled flag plus the relevant model options.  Disabled
+// sensors are zero-cost: no model is registered and no state segment is added.
 //
-// To add a new sensor type, add a new config struct here and handle it in
-// NavigationSystem's factory logic.  Nothing else needs to change.
+// Pass NavigationSystemConfig to NavigationSystem and the factory wires
+// everything automatically.
 //
 
 struct ImuSensorConfig {
@@ -36,70 +53,139 @@ struct GnssSensorConfig {
 // ─────────────────────────────────────────────────────────────────────────────
 
 struct BarometerSensorConfig {
-  bool   enabled{false};
-  double altitude_sigma_m{0.5};         // 1-sigma altitude noise (m)
-  double innovation_gate_sigma{3.0};    // 0 = no gate
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-
-struct StarTrackerSensorConfig {
-  bool   enabled{false};
-  // Horizontal position uncertainty derived from lat/lon fix (m, 1-sigma).
-  // Set large (e.g. 500.0) if you want the star tracker to update heading only.
-  double position_sigma_m{50.0};
-  double yaw_sigma_rad{5e-3};           // heading uncertainty (rad, 1-sigma)
-  // Pitch / roll updates are applied only when the star tracker provides them.
-  double pitch_sigma_rad{1e-2};
-  double roll_sigma_rad{1e-2};
-  double innovation_gate_sigma{3.0};
+  bool enabled{false};
+  ekf::BarometerOptions options;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 struct MagnetometerSensorConfig {
-  bool   enabled{false};
-  // Not yet implemented — reserved for future heading update model.
+  bool enabled{false};
+  ekf::MagnetometerOptions options;
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+struct StarTrackerSensorConfig {
+  bool enabled{false};
+  ekf::StarTrackerOptions options;
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+struct WheelOdometrySensorConfig {
+  bool enabled{false};
+  ekf::WheelOdometryOptions options;
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+struct RadarAltimeterSensorConfig {
+  bool enabled{false};
+  ekf::RadarAltimeterOptions options;
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+struct RangeFinderSensorConfig {
+  bool enabled{false};
+  ekf::RangeFinderOptions options;
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+struct OpticalFlowSensorConfig {
+  bool enabled{false};
+  ekf::OpticalFlowOptions options;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 struct DvlSensorConfig {
-  bool   enabled{false};
-  // Not yet implemented — reserved for future DVL velocity update model.
+  bool enabled{false};
+  ekf::DvlOptions options;
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+struct EchoSounderSensorConfig {
+  bool enabled{false};
+  ekf::EchoSounderOptions options;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 struct AirspeedSensorConfig {
-  bool   enabled{false};
-  // Not yet implemented.
+  bool enabled{false};
+  ekf::AirspeedOptions options;
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+struct ExternalPoseSensorConfig {
+  bool enabled{false};
+  ekf::ExternalPoseOptions options;
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+struct ExternalVelocitySensorConfig {
+  bool enabled{false};
+  ekf::ExternalVelocityOptions options;
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+struct ExternalOdometrySensorConfig {
+  bool enabled{false};
+  ekf::ExternalOdometryOptions options;
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+struct AidingSolutionSensorConfig {
+  bool enabled{false};
+  ekf::AidingSolutionOptions options;
 };
 
 // ── NavigationSystemConfig ────────────────────────────────────────────────────
 //
-// Complete system configuration.  Write one instance per hardware platform;
-// pass it to NavigationSystem and the factory does the rest.
+// Complete system configuration.  Write one instance per hardware platform and
+// pass it to NavigationSystem.
 //
-//   Example (custom UAV board with u-blox F9P + ICM-42688 + MS5611):
+// Example (UAV with u-blox F9P + ICM-42688 + MS5611 + optical flow):
 //
-//     NavigationSystemConfig cfg;
-//     cfg.imu.noise.accel_noise_density_mps2_per_sqrthz = 0.0028;
-//     cfg.imu.noise.gyro_noise_density_radps_per_sqrthz  = 8.7e-5;
-//     cfg.gnss.enabled = true;
-//     cfg.gnss.mode    = GnssIntegrationMode::LooselyCoupled;
-//     cfg.barometer.enabled         = true;
-//     cfg.barometer.altitude_sigma_m = 0.3;
-//     NavigationSystem nav(cfg);
+//   NavigationSystemConfig cfg;
+//   cfg.imu.noise.accel_noise_density_mps2_per_sqrthz = 0.0028;
+//   cfg.gnss.enabled = true;
+//   cfg.barometer.enabled = true;
+//   cfg.optical_flow.enabled = true;
+//   NavigationSystem nav(cfg);
 //
 struct NavigationSystemConfig {
-  ImuSensorConfig         imu;
-  GnssSensorConfig        gnss;
-  BarometerSensorConfig   barometer;
-  StarTrackerSensorConfig star_tracker;
-  MagnetometerSensorConfig magnetometer;
-  DvlSensorConfig         dvl;
-  AirspeedSensorConfig    airspeed;
+  ImuSensorConfig            imu;
+  GnssSensorConfig           gnss;
+  BarometerSensorConfig      barometer;
+  MagnetometerSensorConfig   magnetometer;
+  StarTrackerSensorConfig    star_tracker;
+  WheelOdometrySensorConfig  wheel_odometry;
+  RadarAltimeterSensorConfig radar_altimeter;
+  RangeFinderSensorConfig    range_finder;
+  OpticalFlowSensorConfig    optical_flow;
+  DvlSensorConfig            dvl;
+  EchoSounderSensorConfig    echo_sounder;
+  AirspeedSensorConfig       airspeed;
+  ExternalPoseSensorConfig   external_pose;
+  ExternalVelocitySensorConfig  external_velocity;
+  ExternalOdometrySensorConfig  external_odometry;
+  AidingSolutionSensorConfig    aiding_solution;
+
+  // Backend selection
+  EstimatorBackendChoice backend{EstimatorBackendChoice::Ekf};
+
+  // UKF-only: Merwe scaled sigma point parameters.
+  // Ignored when backend == Ekf.
+  ukf::MerweSigmaParams ukf_sigma_params;
 
   // EKF engine tuning
   double dead_reckoning_threshold_s{5.0};

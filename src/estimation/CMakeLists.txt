@@ -1,4 +1,7 @@
 add_library(falconguide_estimation STATIC
+  # Pipeline / system
+  src/estimator_pipeline.cpp
+  src/navigation_system.cpp
   # EKF backend
   src/backends/ekf/ekf_estimator.cpp
   src/backends/ekf/measurement_models/gnss_loosely_coupled.cpp
