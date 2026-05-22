@@ -1,10 +1,21 @@
 #pragma once
 
-// ── FalconGuide IPC Protocol (Unix socket, newline-delimited JSON) ────────────
+/**
+ * @file ipc_protocol.hpp
+ * @brief Newline-delimited JSON IPC protocol reference for FalconGuide
+ * sessions.
+ *
+ * This file is intentionally documentation-only. The protocol uses UTF-8 JSON
+ * objects over a Unix domain socket, one message per line.
+ */
+
+// ── FalconGuide IPC Protocol (Unix socket, newline-delimited JSON)
+// ────────────
 //
 // All messages are UTF-8 JSON objects terminated by '\n'.
 //
-// ── Commands (client → server) ────────────────────────────────────────────────
+// ── Commands (client → server)
+// ────────────────────────────────────────────────
 //
 //   {"cmd": "get_status"}
 //   {"cmd": "get_schema"}
@@ -18,8 +29,8 @@
 // ── Events (server → all clients) ────────────────────────────────────────────
 //
 //   {"event": "status",
-//    "status": "running",          // idle|configured|running|paused|completed|error
-//    "measurements_read": 4321}
+//    "status": "running",          //
+//    idle|configured|running|paused|completed|error "measurements_read": 4321}
 //
 //   {"event": "nav_state",
 //    "timestamp_ns": 1234567890,

@@ -1,11 +1,17 @@
 #pragma once
 
+/**
+ * @file range_finder.hpp
+ * @brief EKF generic range-finder measurement model.
+ */
+
 #include "falconguide/estimation/backends/ekf/measurement_models/measurement_model.hpp"
 
 #include <optional>
 
 namespace falconguide::estimation::ekf {
 
+/// @brief Options for EKF range-finder fusion.
 struct RangeFinderOptions {
   // Expected range to target (m), used for innovation gate.  0 = disabled.
   double expected_range_m{0.0};
@@ -23,29 +29,31 @@ struct RangeFinderOptions {
   double innovation_gate{0.0};
 };
 
-// ── RangeFinder ───────────────────────────────────────────────────────────────
+// ── RangeFinder
+// ───────────────────────────────────────────────────────────────
 //
 // Scalar range update.  When use_as_altitude is true, the range is treated as
 // altitude above terrain (identical measurement function to RadarAltimeter).
 //
 // h(x) = p_enu.z - terrain_elevation_m
 //
+/// @brief EKF measurement model for scalar range-as-altitude updates.
 class RangeFinder : public IMeasurementModel {
- public:
+public:
   explicit RangeFinder(RangeFinderOptions options = {});
 
-  [[nodiscard]] bool CanHandle(const SensorMeasurement& measurement) const override;
+  [[nodiscard]] bool
+  CanHandle(const SensorMeasurement &measurement) const override;
 
-  EstimatorUpdateResult Apply(
-      NominalState& nominal,
-      Eigen::VectorXd& error_state,
-      Eigen::MatrixXd& covariance,
-      const StateLayout& layout,
-      const SensorMeasurement& measurement,
-      const UpdateContext& context) override;
+  EstimatorUpdateResult Apply(NominalState &nominal,
+                              Eigen::VectorXd &error_state,
+                              Eigen::MatrixXd &covariance,
+                              const StateLayout &layout,
+                              const SensorMeasurement &measurement,
+                              const UpdateContext &context) override;
 
- private:
+private:
   RangeFinderOptions options_;
 };
 
-}  // namespace falconguide::estimation::ekf
+} // namespace falconguide::estimation::ekf

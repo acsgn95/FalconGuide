@@ -9,6 +9,7 @@ project(
 
 option(FALCON_GUIDE_BUILD_TESTS "Build FalconGuide tests" ON)
 option(FALCON_GUIDE_FETCH_DEPS "Fetch missing dependencies on supported platforms" OFF)
+option(FALCON_GUIDE_BUILD_DOCS "Add a Doxygen documentation target" OFF)
 
 # Always build spdlog from source via FetchContent to avoid ABI mismatches with
 # pre-built binaries (e.g. conda packages compiled against a different libstdc++).
@@ -31,4 +32,15 @@ add_subdirectory(exe)
 if(FALCON_GUIDE_BUILD_TESTS)
   enable_testing()
   add_subdirectory(tests)
+endif()
+
+if(FALCON_GUIDE_BUILD_DOCS)
+  find_package(Doxygen REQUIRED)
+  add_custom_target(
+    docs
+    COMMAND ${DOXYGEN_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/Doxyfile
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    COMMENT "Generating FalconGuide API documentation with Doxygen"
+    VERBATIM
+  )
 endif()

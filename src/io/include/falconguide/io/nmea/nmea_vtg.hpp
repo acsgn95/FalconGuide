@@ -1,5 +1,10 @@
 #pragma once
 
+/**
+ * @file nmea_vtg.hpp
+ * @brief NMEA VTG parsing and FalconGuide VTG sentence generation.
+ */
+
 #include "falconguide/core/math.hpp"
 #include "falconguide/core/navigation_state.hpp"
 #include "falconguide/io/nmea/nmea_sentence.hpp"
@@ -18,12 +23,14 @@ namespace falconguide::io::nmea {
 // Fields: COG_true, T, COG_mag, M, speed_knots, N, speed_kph, K, [mode]
 
 struct VtgData {
-  double course_true_deg{0.0};   // course over ground, true north
-  double speed_knots{0.0};
-  double speed_kph{0.0};
+  double course_true_deg{0.0}; ///< Course over ground relative to true north.
+  double speed_knots{0.0};     ///< Speed over ground in knots.
+  double speed_kph{0.0};       ///< Speed over ground in kilometers per hour.
 };
 
-[[nodiscard]] inline std::optional<VtgData> ParseVtg(const NmeaSentence& sentence) {
+/// @brief Parses a validated VTG sentence.
+[[nodiscard]] inline std::optional<VtgData>
+ParseVtg(const NmeaSentence &sentence) {
   if (sentence.formatter != "VTG" || sentence.fields.size() < 7) {
     return std::nullopt;
   }
@@ -46,7 +53,9 @@ struct VtgData {
   return data;
 }
 
-[[nodiscard]] inline std::optional<VtgData> ParseVtgLine(std::string_view line) {
+/// @brief Parses a raw VTG line.
+[[nodiscard]] inline std::optional<VtgData>
+ParseVtgLine(std::string_view line) {
   const std::optional<NmeaSentence> sentence = ParseSentence(line);
   if (!sentence) {
     return std::nullopt;
@@ -54,10 +63,12 @@ struct VtgData {
   return ParseVtg(*sentence);
 }
 
-[[nodiscard]] inline std::string WriteVtg(const core::NavigationState& state) {
-  // Course over ground from ENU velocity (atan2 east, north) -> clockwise from true north.
-  const double vn = state.velocity_enu_mps.y();  // ENU: y = north
-  const double ve = state.velocity_enu_mps.x();  // ENU: x = east
+/// @brief Writes a FalconGuide VTG sentence from a navigation state.
+[[nodiscard]] inline std::string WriteVtg(const core::NavigationState &state) {
+  // Course over ground from ENU velocity (atan2 east, north) -> clockwise from
+  // true north.
+  const double vn = state.velocity_enu_mps.y(); // ENU: y = north
+  const double ve = state.velocity_enu_mps.x(); // ENU: x = east
 
   double course_deg = core::RadToDeg(std::atan2(ve, vn));
   if (course_deg < 0.0) {
@@ -66,9 +77,9 @@ struct VtgData {
 
   const double speed_mps = std::sqrt(ve * ve + vn * vn);
   constexpr double kMpsToKnots = 1.0 / 0.514444;
-  constexpr double kMpsToKph   = 3.6;
+  constexpr double kMpsToKph = 3.6;
   const double speed_knots = speed_mps * kMpsToKnots;
-  const double speed_kph   = speed_mps * kMpsToKph;
+  const double speed_kph = speed_mps * kMpsToKph;
 
   std::ostringstream cog;
   cog << std::fixed << std::setprecision(2) << course_deg;
@@ -85,18 +96,13 @@ struct VtgData {
   const std::string mode = valid ? "A" : "N";
 
   const std::vector<std::string> fields{
-      cog.str(),   // course true
+      cog.str(), // course true
       "T",
-      "",          // course magnetic — not computed
-      "M",
-      spd_kt.str(),
-      "N",
-      spd_kph.str(),
-      "K",
-      mode,
+      "", // course magnetic — not computed
+      "M",       spd_kt.str(), "N", spd_kph.str(), "K", mode,
   };
 
   return BuildSentence("FG", "VTG", fields);
 }
 
-}  // namespace falconguide::io::nmea
+} // namespace falconguide::io::nmea

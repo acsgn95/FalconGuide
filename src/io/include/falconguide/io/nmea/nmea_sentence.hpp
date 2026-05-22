@@ -1,5 +1,10 @@
 #pragma once
 
+/**
+ * @file nmea_sentence.hpp
+ * @brief Low-level NMEA 0183 sentence parsing and formatting helpers.
+ */
+
 #include <cstdint>
 #include <iomanip>
 #include <optional>
@@ -11,11 +16,12 @@
 namespace falconguide::io::nmea {
 
 struct NmeaSentence {
-  std::string talker;
-  std::string formatter;
-  std::vector<std::string> fields;
+  std::string talker;              ///< Two-character talker identifier.
+  std::string formatter;           ///< Three-character sentence formatter.
+  std::vector<std::string> fields; ///< Comma-separated payload fields.
 };
 
+/// @brief Computes an NMEA XOR checksum over a payload without '$' or '*'.
 [[nodiscard]] inline std::uint8_t ComputeChecksum(std::string_view payload) {
   std::uint8_t checksum = 0;
   for (const char character : payload) {
@@ -24,13 +30,17 @@ struct NmeaSentence {
   return checksum;
 }
 
+/// @brief Formats a checksum byte as two uppercase hexadecimal characters.
 [[nodiscard]] inline std::string FormatChecksum(std::uint8_t checksum) {
   std::ostringstream stream;
-  stream << std::uppercase << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(checksum);
+  stream << std::uppercase << std::hex << std::setw(2) << std::setfill('0')
+         << static_cast<int>(checksum);
   return stream.str();
 }
 
-[[nodiscard]] inline std::optional<std::uint8_t> ParseHexByte(std::string_view text) {
+/// @brief Parses a two-character hexadecimal byte.
+[[nodiscard]] inline std::optional<std::uint8_t>
+ParseHexByte(std::string_view text) {
   if (text.size() != 2) {
     return std::nullopt;
   }
@@ -51,7 +61,9 @@ struct NmeaSentence {
   return value;
 }
 
-[[nodiscard]] inline std::optional<NmeaSentence> ParseSentence(std::string_view line) {
+/// @brief Parses and validates a full NMEA sentence.
+[[nodiscard]] inline std::optional<NmeaSentence>
+ParseSentence(std::string_view line) {
   if (line.size() < 9 || line.front() != '$') {
     return std::nullopt;
   }
@@ -61,18 +73,22 @@ struct NmeaSentence {
   }
 
   const std::size_t checksum_marker = line.find('*');
-  if (checksum_marker == std::string_view::npos || checksum_marker + 3 != line.size()) {
+  if (checksum_marker == std::string_view::npos ||
+      checksum_marker + 3 != line.size()) {
     return std::nullopt;
   }
 
   const std::string_view payload = line.substr(1, checksum_marker - 1);
-  const std::optional<std::uint8_t> expected_checksum = ParseHexByte(line.substr(checksum_marker + 1, 2));
+  const std::optional<std::uint8_t> expected_checksum =
+      ParseHexByte(line.substr(checksum_marker + 1, 2));
   if (!expected_checksum || ComputeChecksum(payload) != *expected_checksum) {
     return std::nullopt;
   }
 
   const std::size_t first_comma = payload.find(',');
-  const std::string_view header = first_comma == std::string_view::npos ? payload : payload.substr(0, first_comma);
+  const std::string_view header = first_comma == std::string_view::npos
+                                      ? payload
+                                      : payload.substr(0, first_comma);
   if (header.size() < 5) {
     return std::nullopt;
   }
@@ -92,23 +108,27 @@ struct NmeaSentence {
       sentence.fields.emplace_back(payload.substr(field_start));
       break;
     }
-    sentence.fields.emplace_back(payload.substr(field_start, field_end - field_start));
+    sentence.fields.emplace_back(
+        payload.substr(field_start, field_end - field_start));
     field_start = field_end + 1;
   }
 
   return sentence;
 }
 
-[[nodiscard]] inline std::string BuildSentence(std::string_view talker, std::string_view formatter,
-                                               const std::vector<std::string>& fields) {
+/// @brief Builds an NMEA sentence and appends checksum text.
+[[nodiscard]] inline std::string
+BuildSentence(std::string_view talker, std::string_view formatter,
+              const std::vector<std::string> &fields) {
   std::ostringstream payload;
   payload << talker << formatter;
-  for (const std::string& field : fields) {
+  for (const std::string &field : fields) {
     payload << ',' << field;
   }
 
   const std::string payload_text = payload.str();
-  return "$" + payload_text + "*" + FormatChecksum(ComputeChecksum(payload_text));
+  return "$" + payload_text + "*" +
+         FormatChecksum(ComputeChecksum(payload_text));
 }
 
-}  // namespace falconguide::io::nmea
+} // namespace falconguide::io::nmea

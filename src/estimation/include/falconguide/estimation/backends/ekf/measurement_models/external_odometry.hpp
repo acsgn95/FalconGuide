@@ -1,11 +1,17 @@
 #pragma once
 
+/**
+ * @file external_odometry.hpp
+ * @brief EKF external odometry measurement model.
+ */
+
 #include "falconguide/estimation/backends/ekf/measurement_models/measurement_model.hpp"
 
 #include <optional>
 
 namespace falconguide::estimation::ekf {
 
+/// @brief Options for EKF external-odometry fusion.
 struct ExternalOdometryOptions {
   bool use_position{true};
   bool use_velocity{true};
@@ -19,7 +25,8 @@ struct ExternalOdometryOptions {
   double innovation_gate{0.0};
 };
 
-// ── ExternalOdometry ──────────────────────────────────────────────────────────
+// ── ExternalOdometry
+// ──────────────────────────────────────────────────────────
 //
 // Full 9-DOF pose+velocity update (e.g. from an external SLAM system).
 // Selectively applies position, velocity, and attitude sub-updates.
@@ -27,22 +34,23 @@ struct ExternalOdometryOptions {
 // Combines the logic of ExternalPose (position + attitude) and GNSS loosely
 // coupled (velocity) into one model that handles ExternalOdometryMeasurement.
 //
+/// @brief EKF measurement model for 9-DOF external odometry updates.
 class ExternalOdometry : public IMeasurementModel {
- public:
+public:
   explicit ExternalOdometry(ExternalOdometryOptions options = {});
 
-  [[nodiscard]] bool CanHandle(const SensorMeasurement& measurement) const override;
+  [[nodiscard]] bool
+  CanHandle(const SensorMeasurement &measurement) const override;
 
-  EstimatorUpdateResult Apply(
-      NominalState& nominal,
-      Eigen::VectorXd& error_state,
-      Eigen::MatrixXd& covariance,
-      const StateLayout& layout,
-      const SensorMeasurement& measurement,
-      const UpdateContext& context) override;
+  EstimatorUpdateResult Apply(NominalState &nominal,
+                              Eigen::VectorXd &error_state,
+                              Eigen::MatrixXd &covariance,
+                              const StateLayout &layout,
+                              const SensorMeasurement &measurement,
+                              const UpdateContext &context) override;
 
- private:
+private:
   ExternalOdometryOptions options_;
 };
 
-}  // namespace falconguide::estimation::ekf
+} // namespace falconguide::estimation::ekf

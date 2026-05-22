@@ -1,5 +1,10 @@
 #pragma once
 
+/**
+ * @file estimator_pipeline.hpp
+ * @brief Worker-thread pipeline that feeds measurements into an estimator.
+ */
+
 #include "falconguide/estimation/estimator_interface.hpp"
 #include "falconguide/estimation/measurement_queue.hpp"
 #include "falconguide/estimation/navigation_observer.hpp"
@@ -11,7 +16,8 @@
 
 namespace falconguide::estimation {
 
-// ── EstimatorPipeline ─────────────────────────────────────────────────────────
+// ── EstimatorPipeline
+// ─────────────────────────────────────────────────────────
 //
 // Runs the navigation estimator on a single dedicated thread.
 //
@@ -30,49 +36,57 @@ namespace falconguide::estimation {
 // All RegisterObserver() calls must happen before Start(). The pipeline does
 // not own observer pointers; observers must outlive the pipeline.
 //
+/// @brief Owns an estimator, a measurement queue, and navigation observers.
 class EstimatorPipeline {
- public:
-  explicit EstimatorPipeline(
-      std::unique_ptr<INavigationEstimator> estimator,
-      std::size_t queue_capacity = 4096);
+public:
+  /// @brief Creates a pipeline around an estimator.
+  /// @param estimator Backend estimator instance owned by the pipeline.
+  /// @param queue_capacity Maximum number of queued measurements.
+  explicit EstimatorPipeline(std::unique_ptr<INavigationEstimator> estimator,
+                             std::size_t queue_capacity = 4096);
 
+  /// @brief Stops the pipeline and releases owned resources.
   ~EstimatorPipeline();
 
-  EstimatorPipeline(const EstimatorPipeline&)            = delete;
-  EstimatorPipeline& operator=(const EstimatorPipeline&) = delete;
-  EstimatorPipeline(EstimatorPipeline&&)                 = delete;
-  EstimatorPipeline& operator=(EstimatorPipeline&&)      = delete;
+  EstimatorPipeline(const EstimatorPipeline &) = delete;
+  EstimatorPipeline &operator=(const EstimatorPipeline &) = delete;
+  EstimatorPipeline(EstimatorPipeline &&) = delete;
+  EstimatorPipeline &operator=(EstimatorPipeline &&) = delete;
 
-  // Register a downstream observer.  Must be called before Start().
-  void RegisterObserver(INavigationObserver* observer);
+  /// @brief Registers a downstream observer.
+  /// @note Must be called before Start(); the observer is not owned.
+  void RegisterObserver(INavigationObserver *observer);
 
-  // Push a measurement from any sensor thread.
-  // Returns false if the queue is full or the pipeline is not running.
+  /// @brief Pushes a measurement from any sensor thread.
+  /// @return False if the queue is full or the pipeline is not running.
   bool Push(SensorMeasurement measurement);
 
+  /// @brief Starts the estimator worker thread.
   void Start();
 
-  // Signals shutdown, drains the queue, and joins the worker thread.
+  /// @brief Signals shutdown, drains the queue, and joins the worker thread.
   void Stop();
 
+  /// @brief Returns true while the worker thread is running.
   [[nodiscard]] bool IsRunning() const;
 
-  // Reset the estimator and notify observers of the reset.
-  // Must only be called when the pipeline is stopped.
+  /// @brief Resets the estimator and notifies observers.
+  /// @note Must only be called when the pipeline is stopped.
   void Reset();
 
-  [[nodiscard]] const INavigationEstimator& Estimator() const;
+  /// @brief Returns a const reference to the owned estimator.
+  [[nodiscard]] const INavigationEstimator &Estimator() const;
 
- private:
+private:
   void RunLoop();
   void NotifyObservers(std::shared_ptr<const core::NavigationState> state);
   void NotifyReset();
 
   std::unique_ptr<INavigationEstimator> estimator_;
-  MeasurementQueue                      queue_;
-  std::vector<INavigationObserver*>     observers_;
-  std::thread                           thread_;
-  std::atomic<bool>                     running_{false};
+  MeasurementQueue queue_;
+  std::vector<INavigationObserver *> observers_;
+  std::thread thread_;
+  std::atomic<bool> running_{false};
 };
 
-}  // namespace falconguide::estimation
+} // namespace falconguide::estimation

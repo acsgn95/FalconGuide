@@ -1,12 +1,19 @@
 #pragma once
 
+/**
+ * @file gnss_tightly_coupled.hpp
+ * @brief EKF tightly-coupled raw GNSS pseudorange and Doppler model.
+ */
+
 #include "falconguide/estimation/backends/ekf/measurement_models/measurement_model.hpp"
 
 #include <cstddef>
 
 namespace falconguide::estimation::ekf {
 
-// ── GnssTightlyCoupledOptions ─────────────────────────────────────────────────
+// ── GnssTightlyCoupledOptions
+// ─────────────────────────────────────────────────
+/// @brief Options for EKF tightly-coupled GNSS fusion.
 struct GnssTightlyCoupledOptions {
   // Pseudorange noise floor (m, 1-sigma) used when CN0 is unavailable.
   // When CN0 is provided the per-SV noise is scaled as:
@@ -18,14 +25,16 @@ struct GnssTightlyCoupledOptions {
   double base_doppler_sigma_mps{0.5};
 
   // Per-observation innovation gate in units of innovation sigma.
-  // 0 means no gating.  3.0 corresponds to ≈99.7% acceptance for Gaussian noise.
+  // 0 means no gating.  3.0 corresponds to ≈99.7% acceptance for Gaussian
+  // noise.
   double innovation_gate_sigma{3.0};
 
   // Minimum number of healthy SVs required to apply an update.
   std::size_t min_satellites{4};
 };
 
-// ── GnssTightlyCoupled ────────────────────────────────────────────────────────
+// ── GnssTightlyCoupled
+// ────────────────────────────────────────────────────────
 //
 // Fuses raw GNSS pseudoranges and Doppler observations
 // (GnssTightlyCoupledEpoch) directly into the EKF error state, bypassing the
@@ -62,39 +71,36 @@ struct GnssTightlyCoupledOptions {
 //   - StateSegmentId::GnssClock must be registered (enable_gnss_clock_state).
 //   - UpdateContext::ltp must be set (estimator initialised from GNSS).
 //
+/// @brief EKF measurement model for raw GNSS pseudorange and Doppler updates.
 class GnssTightlyCoupled : public IMeasurementModel {
- public:
+public:
   explicit GnssTightlyCoupled(GnssTightlyCoupledOptions options = {});
 
-  [[nodiscard]] bool CanHandle(const SensorMeasurement& measurement) const override;
+  [[nodiscard]] bool
+  CanHandle(const SensorMeasurement &measurement) const override;
 
-  EstimatorUpdateResult Apply(
-      NominalState& nominal,
-      Eigen::VectorXd& error_state,
-      Eigen::MatrixXd& covariance,
-      const StateLayout& layout,
-      const SensorMeasurement& measurement,
-      const UpdateContext& context) override;
+  EstimatorUpdateResult Apply(NominalState &nominal,
+                              Eigen::VectorXd &error_state,
+                              Eigen::MatrixXd &covariance,
+                              const StateLayout &layout,
+                              const SensorMeasurement &measurement,
+                              const UpdateContext &context) override;
 
- private:
+private:
   // Apply a single scalar Kalman update in-place.
   // Returns true if the observation passed the innovation gate.
-  bool ScalarUpdate(
-      Eigen::VectorXd& error_state,
-      Eigen::MatrixXd& covariance,
-      const Eigen::VectorXd& H_row,
-      double innovation,
-      double sigma) const;
+  bool ScalarUpdate(Eigen::VectorXd &error_state, Eigen::MatrixXd &covariance,
+                    const Eigen::VectorXd &H_row, double innovation,
+                    double sigma) const;
 
   // Returns the carrier frequency (Hz) for a given signal type.
   static double CarrierFrequencyHz(core::GnssSignal signal);
 
   // Sagnac (Earth-rotation) correction to geometric range.
-  static double SagnacCorrectionM(
-      const Eigen::Vector3d& pos_sv_ecef_m,
-      const Eigen::Vector3d& pos_rcv_ecef_m);
+  static double SagnacCorrectionM(const Eigen::Vector3d &pos_sv_ecef_m,
+                                  const Eigen::Vector3d &pos_rcv_ecef_m);
 
   GnssTightlyCoupledOptions options_;
 };
 
-}  // namespace falconguide::estimation::ekf
+} // namespace falconguide::estimation::ekf

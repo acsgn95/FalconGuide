@@ -1,12 +1,19 @@
 #pragma once
 
+/**
+ * @file gnss_loosely_coupled.hpp
+ * @brief EKF loosely-coupled GNSS solution measurement model.
+ */
+
 #include "falconguide/estimation/backends/ekf/measurement_models/measurement_model.hpp"
 
 #include <optional>
 
 namespace falconguide::estimation::ekf {
 
-// ── GnssLooselyCoupledOptions ─────────────────────────────────────────────────
+// ── GnssLooselyCoupledOptions
+// ─────────────────────────────────────────────────
+/// @brief Options for EKF loosely-coupled GNSS fusion.
 struct GnssLooselyCoupledOptions {
   // Override the position noise from GnssSolution.covariance (m, 1-sigma).
   std::optional<double> position_sigma_m;
@@ -19,7 +26,8 @@ struct GnssLooselyCoupledOptions {
   double position_gate{0.0};
 };
 
-// ── GnssLooselyCoupled ────────────────────────────────────────────────────────
+// ── GnssLooselyCoupled
+// ────────────────────────────────────────────────────────
 //
 // Fuses a GnssSolution (solver-level position + velocity) into the EKF.
 //
@@ -36,30 +44,31 @@ struct GnssLooselyCoupledOptions {
 // GnssLooselyCoupledOptions allow fixed overrides for testing or conservative
 // noise floors.
 //
+/// @brief EKF measurement model for receiver-computed GNSS position and
+/// velocity.
 class GnssLooselyCoupled : public IMeasurementModel {
- public:
+public:
   explicit GnssLooselyCoupled(GnssLooselyCoupledOptions options = {});
 
-  [[nodiscard]] bool CanHandle(const SensorMeasurement& measurement) const override;
+  [[nodiscard]] bool
+  CanHandle(const SensorMeasurement &measurement) const override;
 
-  EstimatorUpdateResult Apply(
-      NominalState& nominal,
-      Eigen::VectorXd& error_state,
-      Eigen::MatrixXd& covariance,
-      const StateLayout& layout,
-      const SensorMeasurement& measurement,
-      const UpdateContext& context) override;
+  EstimatorUpdateResult Apply(NominalState &nominal,
+                              Eigen::VectorXd &error_state,
+                              Eigen::MatrixXd &covariance,
+                              const StateLayout &layout,
+                              const SensorMeasurement &measurement,
+                              const UpdateContext &context) override;
 
- private:
-  EstimatorUpdateResult ApplySolution(
-      NominalState& nominal,
-      Eigen::VectorXd& error_state,
-      Eigen::MatrixXd& covariance,
-      const StateLayout& layout,
-      const core::GnssSolution& gnss,
-      const core::LocalTangentPlane& ltp);
+private:
+  EstimatorUpdateResult ApplySolution(NominalState &nominal,
+                                      Eigen::VectorXd &error_state,
+                                      Eigen::MatrixXd &covariance,
+                                      const StateLayout &layout,
+                                      const core::GnssSolution &gnss,
+                                      const core::LocalTangentPlane &ltp);
 
   GnssLooselyCoupledOptions options_;
 };
 
-}  // namespace falconguide::estimation::ekf
+} // namespace falconguide::estimation::ekf
