@@ -25,6 +25,8 @@ add_subdirectory(src/core)
 add_subdirectory(src/logger)
 add_subdirectory(src/estimation)
 add_subdirectory(src/io)
+add_subdirectory(src/app)
+add_subdirectory(exe)
 
 if(FALCON_GUIDE_BUILD_TESTS)
   enable_testing()
