@@ -11,10 +11,20 @@
 #include "falconguide/logger/logger.hpp"
 
 #include <ceres/ceres.h>
+#include <ceres/version.h>
 
 #include <deque>
 #include <mutex>
 #include <optional>
+
+// Ceres 2.1+ replaced LocalParameterization with Manifold API.
+#if CERES_VERSION_MAJOR > 2 || (CERES_VERSION_MAJOR == 2 && CERES_VERSION_MINOR >= 1)
+#  define FG_CERES_SET_QUAT_MANIFOLD(problem, ptr) \
+     (problem).SetManifold((ptr), new ceres::EigenQuaternionManifold())
+#else
+#  define FG_CERES_SET_QUAT_MANIFOLD(problem, ptr) \
+     (problem).SetParameterization((ptr), new ceres::EigenQuaternionParameterization())
+#endif
 
 namespace falconguide::estimation::ceres_backend {
 
@@ -185,7 +195,7 @@ class CeresSlidingWindowEstimator::Impl {
             nullptr, kf.vel);
 
         // Quaternion parametrisation
-        problem.SetParameterization(kf.pose.data, new ceres::EigenQuaternionParameterization());
+        FG_CERES_SET_QUAT_MANIFOLD(problem, kf.pose.data);
         problem.SetParameterBlockConstant(&kf.pose.data[0]);  // fix position block
         problem.SetParameterBlockVariable(kf.vel);
 
@@ -280,7 +290,7 @@ class CeresSlidingWindowEstimator::Impl {
 
         // ── Quaternion manifold on all keyframes ───────────────────────────────
         for (auto& kf : window_) {
-            problem.SetParameterization(kf.pose.data, new ceres::EigenQuaternionParameterization());
+            FG_CERES_SET_QUAT_MANIFOLD(problem, kf.pose.data);
         }
 
         // Fix oldest keyframe pose (gauge freedom)

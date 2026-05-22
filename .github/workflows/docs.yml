@@ -27,7 +27,9 @@ jobs:
             plantuml
 
       - name: Generate documentation
-        run: doxygen Doxyfile
+        run: |
+          mkdir -p build/doxygen
+          doxygen Doxyfile
 
       - name: Upload HTML documentation
         uses: actions/upload-artifact@v4
