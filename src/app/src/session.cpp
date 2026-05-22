@@ -24,6 +24,12 @@ FalconGuideSession::FalconGuideSession(SessionConfig cfg) : cfg_(std::move(cfg))
     ipc_server_ =
         std::make_unique<IpcServer>(cfg_.ipc, [this](const nlohmann::json& cmd, int fd) { HandleCommand(cmd, fd); });
 
+    // Build WebSocket server (skip when port is 0)
+    if (cfg_.ws.port > 0) {
+        ws_server_ = std::make_unique<WsServer>(WsConfig{cfg_.ws.port, cfg_.ws.max_clients, cfg_.ws.ui_path},
+                                                [this](const nlohmann::json& cmd) { return HandleWsCommand(cmd); });
+    }
+
     SetStatus(Status::Configured);
 }
 
@@ -43,6 +49,14 @@ bool FalconGuideSession::Start() {
 
     if (!ipc_server_->Start()) {
         log::Get()->warn("IPC server failed to start on {}", cfg_.ipc.socket_path);
+    }
+
+    if (ws_server_) {
+        try {
+            ws_server_->Start();
+        } catch (const std::exception& ex) {
+            log::Get()->warn("WS server failed to start: {}", ex.what());
+        }
     }
 
     nav_system_->Pipeline().Start();
@@ -72,6 +86,7 @@ void FalconGuideSession::Stop() {
     dataset_reader_->Close();
     ipc_server_->BroadcastStatus("idle");
     ipc_server_->Stop();
+    if (ws_server_) ws_server_->Stop();
 
     SetStatus(Status::Idle);
     log::Get()->info("Session stopped.");
@@ -108,6 +123,12 @@ bool FalconGuideSession::Reconfigure(SessionConfig cfg) {
     dataset_reader_ = MakeDatasetReader(cfg_.dataset);
     ipc_server_ =
         std::make_unique<IpcServer>(cfg_.ipc, [this](const nlohmann::json& cmd, int fd) { HandleCommand(cmd, fd); });
+    if (cfg_.ws.port > 0) {
+        ws_server_ = std::make_unique<WsServer>(WsConfig{cfg_.ws.port, cfg_.ws.max_clients, cfg_.ws.ui_path},
+                                                [this](const nlohmann::json& cmd) { return HandleWsCommand(cmd); });
+    } else {
+        ws_server_.reset();
+    }
 
     SetStatus(Status::Configured);
     return true;
@@ -163,7 +184,9 @@ void FalconGuideSession::ReplayLoop() {
 // ── INavigationObserver ───────────────────────────────────────────────────────
 
 void FalconGuideSession::OnNavigationState(std::shared_ptr<const core::NavigationState> state) {
-    if (state) ipc_server_->BroadcastNavState(*state);
+    if (!state) return;
+    ipc_server_->BroadcastNavState(*state);
+    if (ws_server_) ws_server_->Broadcast(ipc_server_->NavStateJson(*state));
 }
 
 void FalconGuideSession::OnEstimatorReset() { ipc_server_->BroadcastStatus("reset"); }
@@ -237,6 +260,40 @@ std::string FalconGuideSession::GetStatusString() const {
 std::string FalconGuideSession::GetError() const {
     std::lock_guard lk(error_mutex_);
     return error_;
+}
+
+// ── WebSocket command handler ─────────────────────────────────────────────────
+
+nlohmann::json FalconGuideSession::HandleWsCommand(const nlohmann::json& cmd) {
+    const auto verb = cmd.value("cmd", std::string{});
+
+    if (verb == "start") {
+        Start();
+    } else if (verb == "stop") {
+        Stop();
+    } else if (verb == "pause") {
+        Pause();
+    } else if (verb == "resume") {
+        Resume();
+    } else if (verb == "set_speed") {
+        cfg_.playback_speed = cmd.value("speed", cfg_.playback_speed);
+    } else if (verb == "get_status") {
+        return {{"event", "status"},
+                {"status", GetStatusString()},
+                {"measurements_read", dataset_reader_->MeasurementsRead()}};
+    } else if (verb == "get_schema") {
+        return {{"event", "schema"}, {"schema", SessionConfig::ToSchemaJson()}};
+    } else if (verb == "configure") {
+        if (cmd.contains("config")) {
+            try {
+                Reconfigure(SessionConfig::FromJson(cmd["config"].dump()));
+                return {{"event", "status"}, {"status", "configured"}};
+            } catch (const std::exception& ex) {
+                return {{"event", "error"}, {"message", std::string("configure failed: ") + ex.what()}};
+            }
+        }
+    }
+    return {{"event", "ack"}, {"cmd", verb}};
 }
 
 }  // namespace falconguide::app

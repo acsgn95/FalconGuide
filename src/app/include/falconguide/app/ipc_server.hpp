@@ -49,6 +49,8 @@ class IpcServer {
     /// @brief Broadcasts a JSON event to all connected clients.
     void Broadcast(const nlohmann::json &event);
 
+    /// @brief Builds and returns the nav-state JSON (shared with WsServer).
+    [[nodiscard]] static nlohmann::json NavStateJson(const core::NavigationState &state);
     /// @brief Broadcasts a navigation-state event.
     void BroadcastNavState(const core::NavigationState &state);
     /// @brief Broadcasts a status event.

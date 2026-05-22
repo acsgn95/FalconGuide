@@ -453,6 +453,13 @@ SessionConfig SessionConfig::FromJson(const std::string& json_str) {
             sc.ipc.max_clients = ji.value("max_clients", 8);
         }
 
+        if (j.contains("ws")) {
+            const auto& jw = j["ws"];
+            sc.ws.port = jw.value("port", uint16_t{8765});
+            sc.ws.max_clients = jw.value("max_clients", 16);
+            sc.ws.ui_path = jw.value("ui_path", std::string{"ui/index.html"});
+        }
+
         sc.playback_speed = j.value("playback_speed", 1.0);
 
     } catch (const std::exception& ex) {
@@ -474,6 +481,7 @@ std::string SessionConfig::ToJson() const {
     j["nav"] = NavToJson(nav);
     j["dataset"] = {{"type", dataset.type}, {"path", dataset.path}};
     j["ipc"] = {{"socket_path", ipc.socket_path}, {"max_clients", ipc.max_clients}};
+    j["ws"] = {{"port", ws.port}, {"max_clients", ws.max_clients}, {"ui_path", ws.ui_path}};
     j["playback_speed"] = playback_speed;
     return j.dump(2);
 }
@@ -502,6 +510,14 @@ nlohmann::json SessionConfig::ToSchemaJson() {
            {
                {"socket_path", jstr()},
                {"max_clients", jint(1)},
+           }}}},
+        {"ws",
+         {{"type", "object"},
+          {"properties",
+           {
+               {"port", jint(0)},
+               {"max_clients", jint(1)},
+               {"ui_path", jpath()},
            }}}},
         {"nav",
          {{"type", "object"},

@@ -192,31 +192,23 @@ void IpcServer::Broadcast(const json& event) {
 
 // ── Convenience broadcast builders ────────────────────────────────────────────
 
-void IpcServer::BroadcastNavState(const core::NavigationState& state) {
-    // Derive geodetic from ECEF
+nlohmann::json IpcServer::NavStateJson(const core::NavigationState& state) {
     const core::Lla lla = core::EcefToLla(state.position_ecef_m);
     const double lat_deg = lla.latitude_rad * (180.0 / M_PI);
     const double lon_deg = lla.longitude_rad * (180.0 / M_PI);
-
-    // Euler from quaternion (ZYX: yaw-pitch-roll)
-    const auto& q = state.orientation_body_to_enu;
-    const double roll_rad = std::atan2(2 * (q.w() * q.x() + q.y() * q.z()), 1 - 2 * (q.x() * q.x() + q.y() * q.y()));
-    const double pitch_rad = std::asin(std::clamp(2 * (q.w() * q.y() - q.z() * q.x()), -1.0, 1.0));
-    const double yaw_rad = std::atan2(2 * (q.w() * q.z() + q.x() * q.y()), 1 - 2 * (q.y() * q.y() + q.z() * q.z()));
     const double r2d = 180.0 / M_PI;
 
-    // Std devs from diagonal of covariance (pos=0:3, vel=3:6)
+    const auto& q = state.orientation_body_to_enu;
+    const double roll_deg =
+        std::atan2(2 * (q.w() * q.x() + q.y() * q.z()), 1 - 2 * (q.x() * q.x() + q.y() * q.y())) * r2d;
+    const double pitch_deg = std::asin(std::clamp(2 * (q.w() * q.y() - q.z() * q.x()), -1.0, 1.0)) * r2d;
+    const double yaw_deg =
+        std::atan2(2 * (q.w() * q.z() + q.x() * q.y()), 1 - 2 * (q.y() * q.y() + q.z() * q.z())) * r2d;
+
     const auto cov = state.covariance;
-    const std::array<double, 3> pos_std = {
-        std::sqrt(std::max(0.0, cov(0, 0))),
-        std::sqrt(std::max(0.0, cov(1, 1))),
-        std::sqrt(std::max(0.0, cov(2, 2))),
-    };
-    const std::array<double, 3> vel_std = {
-        std::sqrt(std::max(0.0, cov(3, 3))),
-        std::sqrt(std::max(0.0, cov(4, 4))),
-        std::sqrt(std::max(0.0, cov(5, 5))),
-    };
+    const double pos_h = std::sqrt(std::max(0.0, (cov(0, 0) + cov(1, 1)) * 0.5));
+    const double pos_v = std::sqrt(std::max(0.0, cov(2, 2)));
+    const double vel_std = std::sqrt(std::max(0.0, (cov(3, 3) + cov(4, 4) + cov(5, 5)) / 3.0));
 
     auto nav_status_str = [](core::NavigationStatus s) -> std::string {
         switch (s) {
@@ -238,24 +230,26 @@ void IpcServer::BroadcastNavState(const core::NavigationState& state) {
     int64_t ts_ns = 0;
     if (state.timestamp.has_steady) ts_ns = state.timestamp.steady.nanoseconds_since_epoch().count();
 
-    Broadcast({
+    return {
         {"event", "nav_state"},
         {"timestamp_ns", ts_ns},
         {"lat_deg", lat_deg},
         {"lon_deg", lon_deg},
         {"alt_m", lla.altitude_m},
-        {"pos_enu_m", json::array({state.position_enu_m.x(), state.position_enu_m.y(), state.position_enu_m.z()})},
         {"vel_enu_mps",
          json::array({state.velocity_enu_mps.x(), state.velocity_enu_mps.y(), state.velocity_enu_mps.z()})},
-        {"roll_deg", roll_rad * r2d},
-        {"pitch_deg", pitch_rad * r2d},
-        {"yaw_deg", yaw_rad * r2d},
-        {"pos_std_m", json::array({pos_std[0], pos_std[1], pos_std[2]})},
-        {"vel_std_mps", json::array({vel_std[0], vel_std[1], vel_std[2]})},
+        {"roll_deg", roll_deg},
+        {"pitch_deg", pitch_deg},
+        {"yaw_deg", yaw_deg},
+        {"pos_std_h_m", pos_h},
+        {"pos_std_v_m", pos_v},
+        {"vel_std_mps", vel_std},
         {"initialized", state.quality.initialized},
         {"nav_status", nav_status_str(state.status)},
-    });
+    };
 }
+
+void IpcServer::BroadcastNavState(const core::NavigationState& state) { Broadcast(NavStateJson(state)); }
 
 void IpcServer::BroadcastStatus(const std::string& status, std::size_t measurements_read) {
     Broadcast({

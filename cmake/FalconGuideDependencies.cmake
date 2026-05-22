@@ -133,3 +133,56 @@ if(FALCONGUIDE_ENABLE_GTSAM)
     message(STATUS "GTSAM found: ${GTSAM_VERSION}")
   endif()
 endif()
+
+# ── Dear ImGui + ImPlot + GLFW (optional — desktop UI) ───────────────────────
+option(FALCONGUIDE_BUILD_UI "Build ImGui desktop UI" ON)
+
+if(FALCONGUIDE_BUILD_UI)
+  find_package(OpenGL QUIET)
+
+  if(NOT OpenGL_FOUND)
+    message(WARNING "OpenGL not found — disabling ImGui UI build")
+    set(FALCONGUIDE_BUILD_UI
+        OFF
+        CACHE BOOL "" FORCE)
+  else()
+    # GLFW
+    find_package(glfw3 CONFIG QUIET)
+    if(NOT glfw3_FOUND)
+      fetchcontent_declare(
+        glfw
+        GIT_REPOSITORY https://github.com/glfw/glfw.git
+        GIT_TAG 3.4
+        GIT_SHALLOW TRUE)
+      set(GLFW_BUILD_DOCS
+          OFF
+          CACHE BOOL "" FORCE)
+      set(GLFW_BUILD_TESTS
+          OFF
+          CACHE BOOL "" FORCE)
+      set(GLFW_BUILD_EXAMPLES
+          OFF
+          CACHE BOOL "" FORCE)
+      set(GLFW_INSTALL
+          OFF
+          CACHE BOOL "" FORCE)
+      fetchcontent_makeavailable(glfw)
+    endif()
+
+    # Dear ImGui (vendored — no CMake, we build it manually in src/ui)
+    fetchcontent_declare(
+      imgui
+      GIT_REPOSITORY https://github.com/ocornut/imgui.git
+      GIT_TAG v1.91.0
+      GIT_SHALLOW TRUE)
+    fetchcontent_makeavailable(imgui)
+
+    # ImPlot
+    fetchcontent_declare(
+      implot
+      GIT_REPOSITORY https://github.com/epezent/implot.git
+      GIT_TAG v0.17
+      GIT_SHALLOW TRUE)
+    fetchcontent_makeavailable(implot)
+  endif()
+endif()
