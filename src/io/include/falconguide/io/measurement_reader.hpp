@@ -47,6 +47,7 @@ enum class ReadResult {
 struct ReadOutcome {
     ReadResult result{ReadResult::EndOfData};                  ///< Read outcome.
     std::optional<estimation::SensorMeasurement> measurement;  ///< Measurement when result is Ok.
+    std::optional<std::string> camera_frame_path;              ///< Camera frame path, when a new frame is available.
     std::string error_message;                                 ///< Error detail when result is Error.
 };
 

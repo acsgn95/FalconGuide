@@ -153,7 +153,15 @@ void FalconGuideSession::ReplayLoop() {
         auto outcome = dataset_reader_->Next();
 
         if (outcome.result == io::ReadResult::EndOfData) break;
-        if (outcome.result != io::ReadResult::Ok || !outcome.measurement) continue;
+        if (outcome.result != io::ReadResult::Ok) continue;
+
+        // Broadcast camera frame path when a new frame arrives
+        if (outcome.camera_frame_path) {
+            nlohmann::json cam_ev = {{"event", "camera_frame"}, {"path", *outcome.camera_frame_path}};
+            if (ws_server_) ws_server_->Broadcast(cam_ev);
+        }
+
+        if (!outcome.measurement) continue;
 
         // Speed-controlled replay timing
         if (cfg_.playback_speed > 0.0) {

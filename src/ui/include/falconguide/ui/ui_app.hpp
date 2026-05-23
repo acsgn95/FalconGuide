@@ -10,7 +10,9 @@
  */
 
 #include "falconguide/app/session.hpp"
+#include "falconguide/ui/tile_map.hpp"
 #include "falconguide/ui/ws_client.hpp"
+#include "falconguide/vo/vo_processor.hpp"
 
 #include <nlohmann/json.hpp>
 
@@ -52,6 +54,7 @@ class UiApp {
     void DrawTrajectoryPanel();
     void DrawChartPanel();
     void DrawControlPanel();
+    void DrawCameraPanel();
 
     // ── Session management
     void StartSession();
@@ -66,6 +69,7 @@ class UiApp {
 
     // ── Setup form state
     char dataset_path_buf_[1024]{};
+    int dataset_type_idx_{0};  // 0=sensor_logger, 1=csv
     float playback_speed_{1.0f};
     int backend_idx_{0};  // 0=EKF, 1=UKF, 2=Ceres, 3=GTSAM
     char config_json_buf_[8192]{};
@@ -87,6 +91,18 @@ class UiApp {
     static constexpr std::size_t kMaxSamples = 3000;
     std::deque<NavSample> samples_;
     double t0_{-1.0};
+
+    // ── Map
+    TileMap tile_map_;
+
+    // ── VO processor + camera state
+    vo::VoProcessor vo_processor_;
+    std::string pending_camera_path_;  ///< Set by OnMessage, consumed by DrawCameraPanel
+    unsigned int camera_texture_{0};   ///< OpenGL texture for current frame
+    int camera_tex_w_{0};
+    int camera_tex_h_{0};
+    vo::VoResult last_vo_result_;
+    std::vector<vo::VoPose> vo_trajectory_snapshot_;
 
     // ── GLFW
     GLFWwindow* window_{nullptr};

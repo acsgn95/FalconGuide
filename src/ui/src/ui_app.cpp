@@ -1,12 +1,16 @@
 #include "falconguide/ui/ui_app.hpp"
 
 #include "falconguide/app/config_json.hpp"
+#include "falconguide/estimation/navigation_system_config.hpp"
 
 #include <GLFW/glfw3.h>
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
 #include <implot.h>
+
+#include <opencv2/imgcodecs.hpp>
+#include <opencv2/imgproc.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -50,6 +54,7 @@ void UiApp::StartSession() {
 
     app::SessionConfig cfg;
     cfg.dataset.path = dataset_path_buf_;
+    cfg.dataset.type = (dataset_type_idx_ == 0) ? "sensor_logger" : "csv";
     cfg.playback_speed = double(playback_speed_);
     cfg.ws.port = ws_port_;
     cfg.ws.max_clients = 4;
@@ -65,10 +70,12 @@ void UiApp::StartSession() {
         }
     }
 
-    // Apply backend choice from dropdown (unless overridden by JSON)
+    // Apply sensor defaults when not using a JSON override
     if (!config_json_dirty_) {
-        (void)kBackends[backend_idx_];  // nav backend wired via NavigationSystemConfig
-        // For now backend selection is a nav config field — use defaults
+        (void)kBackends[backend_idx_];
+        // Enable GNSS loosely-coupled fusion for datasets that provide GPS
+        cfg.nav.gnss.enabled = true;
+        cfg.nav.gnss.mode = estimation::GnssIntegrationMode::LooselyCoupled;
     }
 
     try {
@@ -94,6 +101,9 @@ void UiApp::StopSession() {
     t0_ = -1.0;
     status_ = "idle";
     meas_read_ = 0;
+    pending_camera_path_.clear();
+    vo_processor_.Reset();
+    vo_trajectory_snapshot_.clear();
 }
 
 void UiApp::SendCmd(const nlohmann::json& cmd) { ws_client_.Send(cmd); }
@@ -132,6 +142,8 @@ void UiApp::OnMessage(const nlohmann::json& msg) {
         schema_received_ = true;
     } else if (ev == "error") {
         status_ = "error: " + msg.value("message", "");
+    } else if (ev == "camera_frame") {
+        pending_camera_path_ = msg.value("path", std::string{});
     }
 }
 
@@ -213,8 +225,14 @@ void UiApp::DrawSetupScreen() {
     ImGui::Separator();
     ImGui::Spacing();
 
-    // Dataset path
-    ImGui::Text("Dataset path (CSV)");
+    // Dataset type + path
+    ImGui::Text("Dataset type");
+    ImGui::SameLine(130);
+    ImGui::SetNextItemWidth(160);
+    const char* ds_types[] = {"Sensor Logger (dir)", "CSV (single file)"};
+    ImGui::Combo("##dstype", &dataset_type_idx_, ds_types, IM_ARRAYSIZE(ds_types));
+
+    ImGui::Text(dataset_type_idx_ == 0 ? "Dataset directory" : "Dataset path (CSV)");
     ImGui::SetNextItemWidth(-1);
     ImGui::InputText("##path", dataset_path_buf_, sizeof(dataset_path_buf_));
     ImGui::Spacing();
@@ -288,8 +306,13 @@ void UiApp::DrawMainScreen() {
 
     // Controls (bottom-left)
     ImGui::SetNextWindowPos({0, top_h});
-    ImGui::SetNextWindowSize({left_w, bottom_h});
+    ImGui::SetNextWindowSize({left_w * 0.5f, bottom_h});
     DrawControlPanel();
+
+    // Camera + VO (bottom-right)
+    ImGui::SetNextWindowPos({left_w * 0.5f, top_h});
+    ImGui::SetNextWindowSize({float(fw) - left_w * 0.5f, bottom_h});
+    DrawCameraPanel();
 
     // Status bar (bottom)
     DrawStatusBar();
@@ -333,11 +356,12 @@ void UiApp::DrawStatusBar() {
 // ── Trajectory ────────────────────────────────────────────────────────────────
 
 void UiApp::DrawTrajectoryPanel() {
-    ImGui::Begin("Trajectory (ENU)", nullptr,
+    ImGui::Begin("Trajectory", nullptr,
                  ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse);
 
     std::vector<double> east, north;
     double lat0 = 0.0, lon0 = 0.0;
+    double lat_min = 1e9, lat_max = -1e9, lon_min = 1e9, lon_max = -1e9;
     {
         std::lock_guard lk(mu_);
         if (!samples_.empty()) {
@@ -345,23 +369,43 @@ void UiApp::DrawTrajectoryPanel() {
             lon0 = samples_.front().lon_deg;
             constexpr double kDeg2Rad = M_PI / 180.0;
             constexpr double kR = 6378137.0;
+            const double cos_lat0 = std::cos(lat0 * kDeg2Rad);
             for (auto& s : samples_) {
                 double dlat = (s.lat_deg - lat0) * kDeg2Rad * kR;
-                double dlon = (s.lon_deg - lon0) * kDeg2Rad * kR * std::cos(lat0 * kDeg2Rad);
+                double dlon = (s.lon_deg - lon0) * kDeg2Rad * kR * cos_lat0;
                 east.push_back(dlon);
                 north.push_back(dlat);
+                lat_min = std::min(lat_min, s.lat_deg);
+                lat_max = std::max(lat_max, s.lat_deg);
+                lon_min = std::min(lon_min, s.lon_deg);
+                lon_max = std::max(lon_max, s.lon_deg);
             }
         }
     }
 
-    ImGui::Text("Origin: %.6f°N  %.6f°E", lat0, lon0);
+    if (lat0 != 0.0) tile_map_.Update(lat0, lon0, lat_min, lat_max, lon_min, lon_max);
+
+    ImGui::Text("%.6f°N  %.6f°E", lat0, lon0);
+    ImGui::SameLine(0, 20);
+    ImGui::TextDisabled("(c) OpenStreetMap contributors");
+
     if (ImPlot::BeginPlot("##enu", ImVec2(-1, -1), ImPlotFlags_Equal | ImPlotFlags_NoTitle)) {
         ImPlot::SetupAxes("East (m)", "North (m)");
+        ImPlot::SetupAxisLimitsConstraints(ImAxis_X1, -1e6, 1e6);
+        ImPlot::SetupAxisLimitsConstraints(ImAxis_Y1, -1e6, 1e6);
+
+        // Render OSM tiles as plot background
+        if (lat0 != 0.0) tile_map_.RenderInPlot(lat0, lon0);
+
         if (!east.empty()) {
-            ImPlot::SetNextMarkerStyle(ImPlotMarker_Circle, 2.0f);
-            ImPlot::PlotScatter("Path", east.data(), north.data(), static_cast<int>(east.size()));
-            ImPlot::SetNextMarkerStyle(ImPlotMarker_Diamond, 10.0f, ImVec4(1.0f, 0.3f, 0.3f, 1.0f));
+            // Path line + scatter for clarity
+            ImPlot::SetNextLineStyle(ImVec4(0.2f, 0.6f, 1.0f, 0.9f), 2.0f);
+            ImPlot::PlotLine("Path", east.data(), north.data(), static_cast<int>(east.size()));
+            ImPlot::SetNextMarkerStyle(ImPlotMarker_Diamond, 10.0f, ImVec4(1.0f, 0.25f, 0.25f, 1.0f));
             ImPlot::PlotScatter("Now", &east.back(), &north.back(), 1);
+            // Start marker
+            ImPlot::SetNextMarkerStyle(ImPlotMarker_Circle, 8.0f, ImVec4(0.2f, 1.0f, 0.4f, 1.0f));
+            ImPlot::PlotScatter("Start", &east.front(), &north.front(), 1);
         }
         ImPlot::EndPlot();
     }
@@ -492,6 +536,102 @@ void UiApp::DrawControlPanel() {
     ImGui::Text("%.3f / %.3f m", cur.pos_std_h, cur.pos_std_v);
     ImGui::NextColumn();
     ImGui::Columns(1);
+
+    ImGui::End();
+}
+
+// ── Camera panel ─────────────────────────────────────────────────────────────
+
+static unsigned int UploadTexture(const cv::Mat& bgr, unsigned int existing_tex) {
+    if (bgr.empty()) return existing_tex;
+    cv::Mat rgb;
+    cv::cvtColor(bgr, rgb, cv::COLOR_BGR2RGB);
+    if (existing_tex == 0) glGenTextures(1, &existing_tex);
+    glBindTexture(GL_TEXTURE_2D, existing_tex);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, rgb.cols, rgb.rows, 0, GL_RGB, GL_UNSIGNED_BYTE, rgb.data);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    return existing_tex;
+}
+
+void UiApp::DrawCameraPanel() {
+    ImGui::Begin("Camera / VO", nullptr,
+                 ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse);
+
+    // Process pending camera frame on render thread (VO ~30-80ms per frame is acceptable)
+    std::string path_to_process;
+    {
+        std::lock_guard lk(mu_);
+        std::swap(path_to_process, pending_camera_path_);
+    }
+
+    if (!path_to_process.empty()) {
+        auto result = vo_processor_.Process(path_to_process);
+
+        cv::Mat vis = result.frame.image.clone();
+        if (result.initialized && !result.matches.empty()) {
+            cv::drawKeypoints(vis, result.frame.keypoints, vis, cv::Scalar(0, 255, 0),
+                              cv::DrawMatchesFlags::DRAW_OVER_OUTIMG);
+        } else {
+            cv::drawKeypoints(vis, result.frame.keypoints, vis, cv::Scalar(0, 200, 255),
+                              cv::DrawMatchesFlags::DRAW_OVER_OUTIMG);
+        }
+
+        cv::Mat small;
+        cv::resize(vis, small, {}, 0.25, 0.25);
+        camera_texture_ = UploadTexture(small, camera_texture_);
+        camera_tex_w_ = small.cols;
+        camera_tex_h_ = small.rows;
+        last_vo_result_ = result;
+
+        std::lock_guard lk(mu_);
+        vo_trajectory_snapshot_ = vo_processor_.Trajectory();
+    }
+
+    if (ImGui::BeginTabBar("##cam_tabs")) {
+        if (ImGui::BeginTabItem("Frame")) {
+            if (camera_texture_ != 0) {
+                ImGui::Text("Keypoints: %d  Inliers: %d", int(last_vo_result_.frame.keypoints.size()),
+                            last_vo_result_.num_inliers);
+                float avail_w = ImGui::GetContentRegionAvail().x;
+                float scale = avail_w / float(camera_tex_w_);
+                ImGui::Image(reinterpret_cast<ImTextureID>(static_cast<uintptr_t>(camera_texture_)),
+                             ImVec2(avail_w, float(camera_tex_h_) * scale));
+            } else {
+                ImGui::TextDisabled("Waiting for camera frames...");
+            }
+            ImGui::EndTabItem();
+        }
+
+        if (ImGui::BeginTabItem("VO Trajectory")) {
+            std::vector<vo::VoPose> traj;
+            {
+                std::lock_guard lk(mu_);
+                traj = vo_trajectory_snapshot_;
+            }
+            std::vector<double> tx, tz;
+            for (auto& p : traj) {
+                if (p.t.rows == 3) {
+                    tx.push_back(p.t.at<double>(0));
+                    tz.push_back(p.t.at<double>(2));
+                }
+            }
+            if (ImPlot::BeginPlot("##vo_traj", ImVec2(-1, -1), ImPlotFlags_Equal | ImPlotFlags_NoTitle)) {
+                ImPlot::SetupAxes("X (rel)", "Z (rel)");
+                if (!tx.empty()) {
+                    ImPlot::SetNextMarkerStyle(ImPlotMarker_Circle, 2.0f, ImVec4(0.2f, 0.9f, 0.4f, 1.0f));
+                    ImPlot::PlotScatter("VO", tx.data(), tz.data(), static_cast<int>(tx.size()));
+                    ImPlot::SetNextMarkerStyle(ImPlotMarker_Diamond, 8.0f, ImVec4(1.0f, 0.4f, 0.2f, 1.0f));
+                    ImPlot::PlotScatter("Now", &tx.back(), &tz.back(), 1);
+                }
+                ImPlot::EndPlot();
+            }
+            ImGui::EndTabItem();
+        }
+
+        ImGui::EndTabBar();
+    }
 
     ImGui::End();
 }
